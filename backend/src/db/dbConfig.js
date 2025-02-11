@@ -1,14 +1,15 @@
-import { Pool } from 'pg'
+import pg from 'pg'
+const { Pool } = pg
 import dotenv from 'dotenv'
 dotenv.config()
 const pool =
   process.env.NODE_ENV === 'development'
     ? new Pool({
         user: 'postgres',
-        password: 'namchi123',
+        password: 'mypassword',
         host: 'localhost',
         port: 5432,
-        database: 'bytesberry_hrms_db',
+        database: 'postgres',
       })
     : new Pool({
         user: process.env.REACT_APP_PG_USER,
