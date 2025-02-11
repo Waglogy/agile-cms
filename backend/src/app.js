@@ -1,4 +1,4 @@
-import { app } from '.'
+import { app } from './index.js'
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'

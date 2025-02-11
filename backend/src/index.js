@@ -10,19 +10,15 @@ try {
   pool
     .connect()
     .then(() => {
-      console.log('Connected to the database')
+      console.log('🎉Connected to the database ')
     })
     .catch((err) => {
-      console.error(err)
+      console.error('😭something went wrong while db connection : ', err)
     })
 } catch (error) {
-  console.error(error)
+  console.error('😥 went wrong while db connection : ', error)
 }
 
-app.get('/', (req, res) => {
-  res.send('Hello World!')
-})
-
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`)
+  console.log(`Server is running on http://localhost:${port} 🚀`)
 })
