@@ -1,5 +1,21 @@
 {
+  "name": "headless-cms-backend",
+  "version": "1.0.0",
+  "description": "cookin a cool headless-cms for bytesberry",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon src/index.js"
+  },
+  "author": "waglogyXbytesberry",
+  "license": "MIT",
   "dependencies": {
-    "express": "^4.21.2"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
   }
 }
