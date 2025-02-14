@@ -19,7 +19,7 @@ const Sidebar = () => {
   return (
     <div className="w-64 bg-white h-screen p-4 shadow-lg border-r">
       <h2 className="text-lg font-semibold text-zinc-700 mb-4">Admin Panel</h2>
-
+      
       {/* Dropdown Section */}
       <div>
         <button
@@ -44,6 +44,16 @@ const Sidebar = () => {
             ))}
           </div>
         )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-3 mt-5">
+        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
+          Save
+        </button>
+        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
+          Publish
+        </button>
       </div>
     </div>
   );

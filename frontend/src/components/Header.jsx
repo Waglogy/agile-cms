@@ -9,16 +9,6 @@ const Header = () => {
         <img src={logo} alt="Logo" className="h-10" />
         <h1 className="text-lg font-semibold text-zinc-700">Admin Panel</h1>
       </div>
-
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
-          Save
-        </button>
-        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
-          Publish
-        </button>
-      </div>
     </header>
   );
 };
