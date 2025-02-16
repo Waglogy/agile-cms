@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "nodemon src/index.js"
+    "dev": "set NODE_ENV=dev&& nodemon src/index.js"
   },
   "author": "waglogyXbytesberry",
   "license": "MIT",
