@@ -183,145 +183,260 @@ SELECT update_content_type_data('blog_posts', 1, '{"title": "Updated Title", "vi
 
 ## Initialize The System or the Database
 
+- run once.
+
 ```sql
-CREATE OR REPLACE FUNCTION initialize_system(
-    p_email TEXT,
-    p_password TEXT
-) RETURNS BOOLEAN AS $$
-DECLARE
-    hashed_password TEXT;
-    super_admin_role_id INT;
-    new_user_id UUID;
-    already_initialized BOOLEAN;
+CREATE OR REPLACE FUNCTION initialize_database() RETURNS BOOLEAN AS $$
 BEGIN
-    -- Enable pgcrypto extension for password hashing
-    CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
-    -- Create necessary tables if they don't exist
-    CREATE TABLE IF NOT EXISTS roles (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL
-    );
-
+    -- Create Users Table
     CREATE TABLE IF NOT EXISTS users (
-        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         email TEXT UNIQUE NOT NULL,
         password_hash TEXT NOT NULL,
         created_at TIMESTAMP DEFAULT NOW()
     );
 
+    -- Create Roles Table
+    CREATE TABLE IF NOT EXISTS roles (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL
+    );
+
+    -- Create Permissions Table
+    CREATE TABLE IF NOT EXISTS permissions (
+        id SERIAL PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL
+    );
+
+    -- Create User Roles Mapping Table
     CREATE TABLE IF NOT EXISTS user_roles (
         user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         role_id INT REFERENCES roles(id) ON DELETE CASCADE,
         PRIMARY KEY (user_id, role_id)
     );
 
-    CREATE TABLE IF NOT EXISTS permissions (
-        id SERIAL PRIMARY KEY,
-        name TEXT UNIQUE NOT NULL
-    );
-
+    -- Create Role Permissions Mapping Table
     CREATE TABLE IF NOT EXISTS role_permissions (
         role_id INT REFERENCES roles(id) ON DELETE CASCADE,
         permission_id INT REFERENCES permissions(id) ON DELETE CASCADE,
         PRIMARY KEY (role_id, permission_id)
     );
 
-    -- Check if system is already initialized
-    SELECT EXISTS(SELECT 1 FROM users) INTO already_initialized;
-    IF already_initialized THEN
-        RAISE NOTICE 'System already initialized. Returning FALSE.';
-        RETURN FALSE;
-    END IF;
-
-    -- Hash the password securely
-    hashed_password := crypt(p_password, gen_salt('bf'));
-
-    -- Insert "Super Admin" role if not exists
-    INSERT INTO roles (name) VALUES ('Super Admin')
+    -- Insert Default Roles
+    INSERT INTO roles (name) VALUES
+    ('Super Admin'),
+    ('Content Admin')
     ON CONFLICT (name) DO NOTHING;
 
-    -- Get "Super Admin" role ID
-    SELECT id INTO super_admin_role_id FROM roles WHERE name = 'Super Admin';
+    -- Insert Default Permissions
+    INSERT INTO permissions (name) VALUES
+    ('Create Content'),
+    ('Edit Content'),
+    ('Delete Content')
+    ON CONFLICT (name) DO NOTHING;
 
-    -- Ensure role was created
-    IF super_admin_role_id IS NULL THEN
-        RAISE NOTICE 'Failed to create Super Admin role';
-        RETURN FALSE;
-    END IF;
-
-    -- Insert the first Super Admin user
-    INSERT INTO users (email, password_hash)
-    VALUES (p_email, hashed_password)
-    RETURNING id INTO new_user_id;
-
-    -- Ensure user was created
-    IF new_user_id IS NULL THEN
-        RAISE NOTICE 'Super Admin user creation failed';
-        RETURN FALSE;
-    END IF;
-
-    -- Assign "Super Admin" role to the user
-    INSERT INTO user_roles (user_id, role_id)
-    VALUES (new_user_id, super_admin_role_id);
-
-    RAISE NOTICE 'Super Admin successfully registered!';
     RETURN TRUE;
-
 EXCEPTION
     WHEN OTHERS THEN
-        RAISE WARNING 'Initialization failed: %', SQLERRM;
+        RAISE NOTICE 'Error: %', SQLERRM;
         RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
 ```
 
-- Insert Query
-- Returns Bool As well
+## Register Super Admin
 
 ```sql
-SELECT initialize_system('admin@example.com', 'SuperSecurePassword');
+CREATE OR REPLACE FUNCTION register_super_admin(
+    p_email TEXT,
+    p_password TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    hashed_password TEXT;
+    super_admin_role_id INT;
+    super_admin_id UUID;
+BEGIN
+    -- Hash the password (Ensure pgcrypto is enabled)
+    hashed_password := crypt(p_password, gen_salt('bf'));
+
+    -- Get the Super Admin role ID
+    SELECT id INTO super_admin_role_id FROM roles WHERE name = 'Super Admin';
+
+    -- Ensure role exists
+    IF super_admin_role_id IS NULL THEN
+        RAISE NOTICE 'Super Admin role not found';
+        RETURN FALSE;
+    END IF;
+
+    -- Insert the Super Admin user
+    INSERT INTO users (email, password_hash, created_at)
+    VALUES (p_email, hashed_password, NOW())
+    RETURNING id INTO super_admin_id;
+
+    -- Assign the Super Admin role to this user
+    INSERT INTO user_roles (user_id, role_id)
+    VALUES (super_admin_id, super_admin_role_id);
+
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
 ```
 
----
+- Query
 
-📌 Brief Explanation of initialize_system Function
+```sql
+SELECT register_super_admin('abhisek@example.com', 'SuperSecurePassword');
+```
 
-The initialize_system function is responsible for setting up the system by:
-🔹 1. Ensuring pgcrypto is enabled
+## Register a Normal User (Created by Super Admin)
 
-    It enables the pgcrypto extension, which is needed for password hashing.
+```sql
+CREATE OR REPLACE FUNCTION register_user(
+    p_email TEXT,
+    p_password TEXT,
+    p_role TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    hashed_password TEXT;
+    user_id UUID;
+    role_id INT;
+BEGIN
+    -- Hash the password
+    hashed_password := crypt(p_password, gen_salt('bf'));
 
-🔹 2. Creating required tables (if they don’t exist)
+    -- Insert the user
+    INSERT INTO users (email, password_hash, created_at)
+    VALUES (p_email, hashed_password, NOW())
+    RETURNING id INTO user_id;
 
-    roles → Stores different user roles (e.g., Super Admin, Content Admin).
-    users → Stores registered users with their email and hashed passwords.
-    user_roles → Links users to roles (many-to-many relationship).
-    permissions → Stores permissions (e.g., "create content", "delete content").
-    role_permissions → Links roles to permissions (many-to-many relationship).
+    -- Get the role ID
+    SELECT id INTO role_id FROM roles WHERE LOWER(name) = LOWER(p_role);
+    IF role_id IS NULL THEN
+        RAISE NOTICE 'Role not found';
+        RETURN FALSE;
+    END IF;
 
-🔹 3. Preventing duplicate initialization
+    -- Assign role to user
+    INSERT INTO user_roles (user_id, role_id) VALUES (user_id, role_id);
 
-    If a user already exists, it stops execution and returns FALSE (system already initialized).
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+```
 
-🔹 4. Creating the "Super Admin" Role
+- Query
 
-    It inserts a "Super Admin" role into the roles table if it does not exist.
-    Then, it fetches the id of this role.
+```sql
+SELECT register_user('user@example.com', 'UserPassword', 'Content Admin');
+```
 
-🔹 5. Registering the First Super Admin User
+## Assign Role to an Existing User
 
-    Hashes the provided password using bcrypt (gen_salt('bf')) for security.
-    Inserts the new Super Admin user into the users table.
-    Fetches the id of the newly created user.
+- Note: update the name of function from assign_role_to_user to update_roles.
 
-🔹 6. Assigning the "Super Admin" Role to the User
+```sql
+CREATE OR REPLACE FUNCTION assign_role_to_user(
+    p_email TEXT,
+    p_role TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_id UUID;
+    v_role_id INT;
+BEGIN
+    -- Get the user's ID
+    SELECT id INTO v_user_id FROM users WHERE email = p_email;
+    IF v_user_id IS NULL THEN
+        RETURN FALSE;  -- User does not exist
+    END IF;
 
-    It assigns the Super Admin role to this user in the user_roles table.
+    -- Get the role's ID
+    SELECT id INTO v_role_id FROM roles WHERE name = p_role;
+    IF v_role_id IS NULL THEN
+        RETURN FALSE;  -- Role does not exist
+    END IF;
 
-🔹 7. Returning TRUE or FALSE based on success/failure
+    -- Remove any existing role assigned to this user
+    DELETE FROM user_roles WHERE user_roles.user_id = v_user_id;
 
-    If everything works, it returns TRUE (success).
-    If something fails (e.g., missing role, failed insert), it returns FALSE and logs a warning.
+    -- Assign the new role to the user
+    INSERT INTO user_roles (user_id, role_id) VALUES (v_user_id, v_role_id);
 
----
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+- Query
+
+```sql
+SELECT assign_role_to_user('contentAdmin@example.com', 'Super Admin');
+```
+
+## Check User Role
+
+```sql
+CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
+RETURNS TABLE(role_name TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT r.name
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE u.email = p_email;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+- Query
+
+```sql
+SELECT get_user_role('user@example.com');
+```
+
+## Authenticate User
+
+```sql
+CREATE OR REPLACE FUNCTION authenticate_user(
+    p_email TEXT,
+    p_password TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    stored_hash TEXT;
+    auth_success BOOLEAN;
+BEGIN
+    -- Retrieve the hashed password from the database
+    SELECT password_hash INTO stored_hash
+    FROM users
+    WHERE email = p_email;
+
+    -- If no user found, return FALSE
+    IF stored_hash IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Compare provided password with stored hash
+    auth_success := (stored_hash = crypt(p_password, stored_hash));
+
+    RETURN auth_success;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+- Query
+
+```sql
+SELECT authenticate_user('admin@example.com', 'SuperSecurePassword');
+```
