@@ -14,7 +14,7 @@ app.use('/api', apiRouter)
 //global error handler
 app.use((err, req, res, next) => {
   if (err instanceof AppError)
-    res.status(err.statusCode).json({
+    return res.status(err.statusCode).json({
       success: false,
       message: err.message,
       error: err.error,
