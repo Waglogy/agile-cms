@@ -8,7 +8,7 @@ const client = new Client({
   user: envConfig.PG_USER,
   password: envConfig.PG_PASSWORD,
   port: envConfig.PG_PORT,
-  database: envConfig.PG_DATABASE,
+  database: String(envConfig.PG_DATABASE).toLowerCase(),
 })
 
 export default client

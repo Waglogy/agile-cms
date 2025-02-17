@@ -6,6 +6,9 @@ import AppError from '../utils/AppError.js'
 class CollectionManager {
   static async createTable(req, res, next) {
     const validation = joiValidator(collectionValidation.createTable, req)
+
+    console.log(validation)
+
     if (!validation.success)
       return next(new AppError(400, 'Validation failed', validation.errors))
 

@@ -20,13 +20,17 @@ async function initializeDatabase() {
 
     // ✅ Ensure database exists
     const res = await adminClient.query(
-      `SELECT 1 FROM pg_database WHERE datname = '${envConfig.PG_DATABASE}';`
+      `SELECT 1 FROM pg_database WHERE datname = '${String(
+        envConfig.PG_DATABASE
+      ).toLowerCase()}';`
     )
     if (res.rows.length === 0) {
       console.log(
         `⚠️ Database '${envConfig.PG_DATABASE}' not found. Creating...`
       )
-      await adminClient.query(`CREATE DATABASE ${envConfig.PG_DATABASE};`)
+      await adminClient.query(
+        `CREATE DATABASE ${String(envConfig.PG_DATABASE).toLowerCase()};`
+      )
       console.log(
         `✅ Database '${envConfig.PG_DATABASE}' created successfully!`
       )
