@@ -177,6 +177,159 @@ async function initializeDatabase() {
       $$ LANGUAGE plpgsql;
     `)
 
+    // register super function function
+    await client.query(`
+      CREATE OR REPLACE FUNCTION register_super_admin(
+    p_email TEXT,
+    p_password TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    hashed_password TEXT;
+    super_admin_role_id INT;
+    super_admin_id UUID;
+BEGIN
+    -- Hash the password (Ensure pgcrypto is enabled)
+    hashed_password := crypt(p_password, gen_salt('bf'));
+
+    -- Get the Super Admin role ID
+    SELECT id INTO super_admin_role_id FROM roles WHERE name = 'Super Admin';
+
+    -- Ensure role exists
+    IF super_admin_role_id IS NULL THEN
+        RAISE NOTICE 'Super Admin role not found';
+        RETURN FALSE;
+    END IF;
+
+    -- Insert the Super Admin user
+    INSERT INTO users (email, password_hash, created_at)
+    VALUES (p_email, hashed_password, NOW())
+    RETURNING id INTO super_admin_id;
+
+    -- Assign the Super Admin role to this user
+    INSERT INTO user_roles (user_id, role_id)
+    VALUES (super_admin_id, super_admin_role_id);
+
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+      `)
+
+    // register normal user or content user
+    await client.query(`CREATE OR REPLACE FUNCTION register_user(
+    p_email TEXT,
+    p_password TEXT,
+    p_role TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    hashed_password TEXT;
+    user_id UUID;
+    role_id INT;
+BEGIN
+    -- Hash the password
+    hashed_password := crypt(p_password, gen_salt('bf'));
+
+    -- Insert the user
+    INSERT INTO users (email, password_hash, created_at)
+    VALUES (p_email, hashed_password, NOW())
+    RETURNING id INTO user_id;
+
+    -- Get the role ID
+    SELECT id INTO role_id FROM roles WHERE LOWER(name) = LOWER(p_role);
+    IF role_id IS NULL THEN
+        RAISE NOTICE 'Role not found';
+        RETURN FALSE;
+    END IF;
+
+    -- Assign role to user
+    INSERT INTO user_roles (user_id, role_id) VALUES (user_id, role_id);
+
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;`)
+
+    // assign role to exixting user
+
+    await client.query(`CREATE OR REPLACE FUNCTION assign_role_to_user(
+    p_email TEXT,
+    p_role TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    v_user_id UUID;
+    v_role_id INT;
+BEGIN
+    -- Get the user's ID
+    SELECT id INTO v_user_id FROM users WHERE email = p_email;
+    IF v_user_id IS NULL THEN
+        RETURN FALSE;  -- User does not exist
+    END IF;
+
+    -- Get the role's ID
+    SELECT id INTO v_role_id FROM roles WHERE name = p_role;
+    IF v_role_id IS NULL THEN
+        RETURN FALSE;  -- Role does not exist
+    END IF;
+
+    -- Remove any existing role assigned to this user
+    DELETE FROM user_roles WHERE user_roles.user_id = v_user_id;
+
+    -- Assign the new role to the user
+    INSERT INTO user_roles (user_id, role_id) VALUES (v_user_id, v_role_id);
+
+    RETURN TRUE;
+END;
+$$ LANGUAGE plpgsql;`)
+
+    // cleck user role
+    await client.query(`CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
+RETURNS TABLE(role_name TEXT) AS $$
+BEGIN
+    RETURN QUERY
+    SELECT r.name
+    FROM users u
+    JOIN user_roles ur ON u.id = ur.user_id
+    JOIN roles r ON ur.role_id = r.id
+    WHERE u.email = p_email;
+END;
+$$ LANGUAGE plpgsql;`)
+
+    // authenticate user
+    await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
+    p_email TEXT,
+    p_password TEXT
+) RETURNS BOOLEAN AS $$
+DECLARE
+    stored_hash TEXT;
+    auth_success BOOLEAN;
+BEGIN
+    -- Retrieve the hashed password from the database
+    SELECT password_hash INTO stored_hash
+    FROM users
+    WHERE email = p_email;
+
+    -- If no user found, return FALSE
+    IF stored_hash IS NULL THEN
+        RETURN FALSE;
+    END IF;
+
+    -- Compare provided password with stored hash
+    auth_success := (stored_hash = crypt(p_password, stored_hash));
+
+    RETURN auth_success;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;`)
+
     console.log('✅ Functions created successfully!')
 
     // ✅ Insert default roles, permissions, and Super Admin
