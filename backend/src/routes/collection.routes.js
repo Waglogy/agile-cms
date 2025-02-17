@@ -1,82 +1,68 @@
 import { Router } from 'express'
-
 import CollectionManager from '../controllers/CollectionManager.js'
 
 const collectionRouter = Router()
 
-// collectionRouter.get('/', (req, res) =>
-//   res.json({ message: 'thisss isss foooorrrr testingggg huiyaahhhhh🥵' })
-// )
+/*
+ **
+ ** Create a new collection (table)
+ **
+ ** Example Request Body:
+ ** {
+ **   "tableName": "users",
+ **   "schema": {
+ **     "name": { "type": "TEXT", "constraints": "NOT NULL" },
+ **     "age": { "type": "INTEGER", "constraints": "DEFAULT 18" }
+ **   }
+ ** }
+ **
+ */
+collectionRouter.post('/create', CollectionManager.createTable)
 
 /*
-**
-**
-***** create new collection*****
-  {
-      {
-    "tableName": "users",
-    "schema": {
-      "name": { "type": "TEXT", "constraints": "NOT NULL" },
-      "age": { "type": "INTEGER", "constraints": "DEFAULT 18" }
-    }
-  }
-********************************
-**
-**
-**/
-
-collectionRouter.post('/create-collection', CollectionManager.createTable)
+ **
+ ** Insert data into an existing collection
+ **
+ ** Example Request Body:
+ ** {
+ **   "tableName": "test",
+ **   "data": {
+ **     "test_title": "this is a test title",
+ **     "test_content": 1
+ **   }
+ ** }
+ **
+ */
+collectionRouter.post('/insert', CollectionManager.insertData)
 
 /*
-**
-**
-*****insert into collection*****
-  {
-    "tableName": "test",
-    "data": {
-      "test-title": "this is test title",
-      "test-content": 1
-    }
-  }
-********************************
-**
-**
-**/
-
-collectionRouter.post('/insert-into-collection', CollectionManager.insertData)
-
-/*
-**
-**
-*****update a given collection's data *****
-  {
-    "tableName": "test",
-    "id": 1,
-    "updateData": {
-        "test-title": "this is updated title",
-        "test-content": 2
-    }
-}
-********************************
-**
-**
-**/
-
-collectionRouter.post('/update-collection-data', CollectionManager.updateData)
+ **
+ ** Update a record in a collection
+ **
+ ** Example Request Body:
+ ** {
+ **   "tableName": "test",
+ **   "id": 1,
+ **   "updateData": {
+ **     "test_title": "this is an updated title",
+ **     "test_content": 2
+ **   }
+ ** }
+ **
+ */
+collectionRouter.put('/update', CollectionManager.updateData)
 
 /*
-**
-**
-*****update a given collection's data *****
- {
-    "tableName": "test",
-    "id": 1
-  }
-********************************
-**
-**
-**/
-
-collectionRouter.post('/delete-colletion-data', CollectionManager.deleteData)
+ **
+ ** Delete a record from a collection
+ **
+ ** Example Request Body:
+ ** {
+ **   "tableName": "test",
+ **   "id": 1
+ ** }
+ **
+ */
+collectionRouter.delete('/delete', CollectionManager.deleteData)
 
 export default collectionRouter
