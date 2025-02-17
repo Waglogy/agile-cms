@@ -1,59 +1,46 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import Dropdown from "../reusable-components/buttons/DropdownButton";
 
-const Sidebar = () => {
-  const [openDropdown, setOpenDropdown] = useState(false);
+const Sidebar = ({ isModalOpen, setModalOpen, setModalContent }) => {
+  const data = ["apple", "banana", "cat"];
+  const [isDropdownOpen, setIsDropdownOpen] = useState(true);
 
-  // Components available for dragging
-  const components = [
-    { id: "rich-text", name: "Rich Text Editor" },
-    { id: "button", name: "Button" },
-    { id: "image", name: "Image Upload" },
-  ];
-
-  // Drag handler
-  const handleDragStart = (event, component) => {
-    event.dataTransfer.setData("componentId", component.id);
+  const handleClick = (action) => {
+    try {
+      switch (action) {
+        case "toggleDropdown":
+          setIsDropdownOpen(!isDropdownOpen);
+          break;
+        case "togglePopUp":
+          setModalOpen(true);
+          setModalContent("Collection Type");
+          break;
+        default:
+          console.log("NO INPUT");
+          break;
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   return (
-    <div className="w-64 bg-white h-screen p-4 shadow-lg border-r">
-      <h2 className="text-lg font-semibold text-zinc-700 mb-4">Admin Panel</h2>
-      
-      {/* Dropdown Section */}
-      <div>
-        <button
-          onClick={() => setOpenDropdown(!openDropdown)}
-          className="flex items-center justify-between w-full bg-zinc-100 p-2 rounded-md"
-        >
-          Drag & Drop Elements
-          {openDropdown ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
-        </button>
-
-        {openDropdown && (
-          <div className="mt-2 bg-zinc-50 p-2 rounded-md border">
-            {components.map((comp) => (
-              <div
-                key={comp.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, comp)}
-                className="p-2 mb-2 bg-zinc-200 rounded cursor-move hover:bg-zinc-300"
-              >
-                {comp.name}
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="flex flex-col w-45 h-screen p-4 shadow-lg border-r">
+      <h1 className="text-l font-bold">Content-Type Builder</h1>
+      <hr />
+      <div className="flex mt-5">
+        <h3>Collection Types</h3>
+        <Dropdown isOpen={isDropdownOpen} toggleDropdown={() => handleClick("toggleDropdown")} />
       </div>
-
-      {/* Actions */}
-      <div className="flex gap-3 mt-5">
-        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
-          Save
-        </button>
-        <button className="bg-zinc-700 text-white px-4 py-2 rounded-md hover:bg-zinc-600">
-          Publish
-        </button>
+      {isDropdownOpen && (
+        <ul className="pl-10 mt-3">
+          {data.map((item, index) => (
+            <li key={index} className="mb-2 list-disc">{item}</li>
+          ))}
+        </ul>
+      )}
+      <div>
+        <a href="#" className="text-blue-600 mt-5" onClick={() => handleClick("togglePopUp")}>New Collection Type</a>
       </div>
     </div>
   );
