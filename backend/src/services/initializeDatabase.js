@@ -54,7 +54,7 @@ async function initializeDatabase() {
     )
     if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
       console.log('✅ Database is already initialized. Skipping setup.')
-      await client.end()
+      // await client.end()
       return
     }
 
