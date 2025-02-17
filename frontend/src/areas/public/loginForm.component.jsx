@@ -66,7 +66,7 @@ const LoginForm = () => {
                                 clearError={clearErrors}
                                 autoComplete="off"
                                 type="text"
-                                classes={`rounded-md px-3 py-2 text-sm w-full`}
+                                classes={`rounded-md px-3 py-2 text-sm w-full text-black`}
                                 onChangeInput={null}
                                 // defaultValue={defaultValues.user_email}
                                 setValue={setValue}
@@ -86,7 +86,7 @@ const LoginForm = () => {
                                 setError={setError}
                                 clearError={clearErrors}
                                 autoComplete="off"
-                                classes={`rounded-md px-3 py-2 text-sm w-full bg-white`}
+                                classes={`rounded-md px-3 py-2 text-sm w-full bg-white text-black`}
                                 onChangeInput={null}
                                 setValue={setValue}
                             />
