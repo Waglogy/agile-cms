@@ -3,7 +3,7 @@
 - ### Function for creating dynamic tables based on user's input
 
 ```sql
-CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS TEXT AS $$
+CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
 DECLARE
     column_definitions TEXT := '';
     column_entry RECORD;
@@ -13,9 +13,9 @@ DECLARE
 BEGIN
     -- Construct column definitions from schema
     FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
-        col_name := quote_ident(column_entry.key); -- Sanitize column name
-        col_type := column_entry.value->>'type'; -- Extract data type
-        constraints := COALESCE(column_entry.value->>'constraints', ''); -- Extract constraints
+        col_name := quote_ident(column_entry.key);
+        col_type := column_entry.value->>'type';
+        constraints := COALESCE(column_entry.value->>'constraints', '');
 
         -- Validate supported types
         IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
@@ -25,10 +25,8 @@ BEGIN
         column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
     END LOOP;
 
-    -- Remove trailing comma and space safely
+    -- Remove trailing comma
     column_definitions := TRIM(BOTH ', ' FROM column_definitions);
-
-    -- Prevent empty column definitions
     IF column_definitions = '' THEN
         RAISE EXCEPTION 'Schema must contain at least one column';
     END IF;
@@ -36,7 +34,11 @@ BEGIN
     -- Execute dynamic SQL to create table
     EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
 
-    RETURN format('Table %I created successfully (or already exists)', table_name);
+    RETURN TRUE; -- Table created successfully
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error creating table: %', SQLERRM;
+        RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
 ```

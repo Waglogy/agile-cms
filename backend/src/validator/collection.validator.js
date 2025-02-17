@@ -47,4 +47,25 @@ export const collectionValidation = {
       .required(),
     id: Joi.number().integer().positive().required(),
   }),
+
+  alterCollection: Joi.object({
+    tableName: Joi.string()
+      .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+      .required(),
+    columnName: Joi.string()
+      .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+      .required(),
+    columnType: Joi.string()
+      .valid(
+        'TEXT',
+        'INTEGER',
+        'BOOLEAN',
+        'TIMESTAMP',
+        'DATE',
+        'NUMERIC',
+        'JSONB'
+      )
+      .required(),
+    constraints: Joi.string().allow('').optional(),
+  }),
 }

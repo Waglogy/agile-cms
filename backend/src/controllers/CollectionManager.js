@@ -7,8 +7,6 @@ class CollectionManager {
   static async createTable(req, res, next) {
     const validation = joiValidator(collectionValidation.createTable, req)
 
-    console.log(validation)
-
     if (!validation.success)
       return next(new AppError(400, 'Validation failed', validation.errors))
 
@@ -106,6 +104,35 @@ class CollectionManager {
         new AppError(
           500,
           `Failed to delete record ID ${validation.value.id} from '${validation.value.tableName}'`,
+          err
+        )
+      )
+    }
+  }
+
+  static async alterCollection(req, res, next) {
+    const validation = joiValidator(collectionValidation.alterCollection, req)
+
+    if (!validation.success)
+      return next(new AppError(400, 'Validation failed', validation.errors))
+
+    try {
+      const success = await queryExecutor.alterCollection(
+        validation.value.tableName,
+        validation.value.columnName,
+        validation.value.columnType,
+        validation.value.constraints || ''
+      )
+      return res.json({ success })
+    } catch (err) {
+      console.error(
+        `Error altering table '${validation.value.tableName}':`,
+        err
+      )
+      return next(
+        new AppError(
+          500,
+          `Failed to alter table '${validation.value.tableName}'`,
           err
         )
       )

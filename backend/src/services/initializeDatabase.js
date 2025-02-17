@@ -95,34 +95,76 @@ async function initializeDatabase() {
     console.log('✅ Tables created successfully!')
 
     // ✅ Create PostgreSQL Functions
-    await client.query(`
-      CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS TEXT AS $$
-      DECLARE
-          column_definitions TEXT := '';
-          column_entry RECORD;
-          col_name TEXT;
-          col_type TEXT;
-          constraints TEXT;
-      BEGIN
-          FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
-              col_name := quote_ident(column_entry.key);
-              col_type := column_entry.value->>'type';
-              constraints := COALESCE(column_entry.value->>'constraints', '');
-              IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-                  RAISE EXCEPTION 'Unsupported data type: %', col_type;
-              END IF;
-              column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
-          END LOOP;
-          column_definitions := TRIM(BOTH ', ' FROM column_definitions);
-          IF column_definitions = '' THEN
-              RAISE EXCEPTION 'Schema must contain at least one column';
-          END IF;
-          EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
-          RETURN format('Table %I created successfully (or already exists)', table_name);
-      END;
-      $$ LANGUAGE plpgsql;
-    `)
 
+    // create dynamic collection or tables
+    await client.query(`
+      CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
+DECLARE
+    column_definitions TEXT := '';
+    column_entry RECORD;
+    col_name TEXT;
+    col_type TEXT;
+    constraints TEXT;
+BEGIN
+    -- Construct column definitions from schema
+    FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
+        col_name := quote_ident(column_entry.key);
+        col_type := column_entry.value->>'type';
+        constraints := COALESCE(column_entry.value->>'constraints', '');
+
+        -- Validate supported types
+        IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
+            RAISE EXCEPTION 'Unsupported data type: %', col_type;
+        END IF;
+
+        column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
+    END LOOP;
+
+    -- Remove trailing comma
+    column_definitions := TRIM(BOTH ', ' FROM column_definitions);
+    IF column_definitions = '' THEN
+        RAISE EXCEPTION 'Schema must contain at least one column';
+    END IF;
+
+    -- Execute dynamic SQL to create table
+    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
+
+    RETURN TRUE; -- Table created successfully
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error creating table: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+`)
+
+    // alter dynamic table or collection
+    await client.query(`
+        CREATE OR REPLACE FUNCTION alter_content_type(
+    table_name TEXT,
+    column_name TEXT,
+    column_type TEXT,
+    constraints TEXT DEFAULT ''
+) RETURNS BOOLEAN AS $$
+BEGIN
+    -- Validate supported types
+    IF column_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
+        RAISE EXCEPTION 'Unsupported data type: %', column_type;
+    END IF;
+
+    -- Execute dynamic SQL to alter the table and add new column
+    EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s %s;', table_name, column_name, column_type, constraints);
+
+    RETURN TRUE; -- Column added successfully
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error adding column: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+`)
+
+    //insert into content type or table
     await client.query(`
       CREATE OR REPLACE FUNCTION insert_into_content_type(table_name TEXT, data JSONB) RETURNS BOOLEAN AS $$
       DECLARE
@@ -148,6 +190,7 @@ async function initializeDatabase() {
       $$ LANGUAGE plpgsql;
     `)
 
+    // delete data from table
     await client.query(`
       CREATE OR REPLACE FUNCTION delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
       DECLARE
@@ -161,6 +204,7 @@ async function initializeDatabase() {
       $$ LANGUAGE plpgsql;
     `)
 
+    // update content type data
     await client.query(`
       CREATE OR REPLACE FUNCTION update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
       DECLARE
@@ -180,6 +224,29 @@ async function initializeDatabase() {
       END;
       $$ LANGUAGE plpgsql;
     `)
+
+    // delete table
+
+    await client.query(`
+      CREATE OR REPLACE FUNCTION delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
+BEGIN
+    -- Prevent deletion of critical system tables
+    IF table_name IN ('users', 'roles', 'user_roles', 'settings') THEN
+        RAISE EXCEPTION 'Deletion of system tables is not allowed!';
+    END IF;
+
+    -- Execute dynamic SQL to drop the table
+    EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', table_name);
+
+    RETURN TRUE;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error deleting table: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+
+      `)
 
     // register super function function
     await client.query(`

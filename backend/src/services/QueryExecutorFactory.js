@@ -40,9 +40,19 @@ class QueryExecutorFactory {
     return result.rows[0].delete_content_type_data
   }
 
-  async initializeDatabase() {
-    const result = await client.query('SELECT initialize_database()')
-    return result.rows[0].initialize_database
+  async deleteCollection(tableName) {
+    const result = await client.query('SELECT delete_content_type_table($1)', [
+      tableName,
+    ])
+    return result.rows[0].delete_content_type_table
+  }
+
+  async alterCollection(tableName, columnName, columnType, constraints = '') {
+    const result = await client.query(
+      'SELECT alter_content_type($1, $2, $3, $4)',
+      [tableName, columnName, columnType, constraints]
+    )
+    return result.rows[0].alter_content_type
   }
 
   async registerSuperAdmin(email, password) {

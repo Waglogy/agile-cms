@@ -65,4 +65,15 @@ collectionRouter.put('/update', CollectionManager.updateData)
  */
 collectionRouter.delete('/delete', CollectionManager.deleteData)
 
+/**
+ {
+  "tableName": "blogs",
+  "columnName": "likes",
+  "columnType": "INTEGER",
+  "constraints": "DEFAULT 0"
+}
+*/
+
+collectionRouter.post('/alter', CollectionManager.alterCollection)
+
 export default collectionRouter
