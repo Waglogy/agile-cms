@@ -31,6 +31,10 @@ class CollectionManager {
     }
   }
 
+  static async deleteCollection(req, res, next) {
+    // TODO Should be done by reesav
+  }
+
   static async insertData(req, res, next) {
     const validation = joiValidator(collectionValidation.insertData, req)
     if (!validation.success)

@@ -50,7 +50,7 @@ collectionRouter.post('/insert', CollectionManager.insertData)
  ** }
  **
  */
-collectionRouter.put('/update', CollectionManager.updateData)
+collectionRouter.post('/update', CollectionManager.updateData)
 
 /*
  **
@@ -63,7 +63,7 @@ collectionRouter.put('/update', CollectionManager.updateData)
  ** }
  **
  */
-collectionRouter.delete('/delete', CollectionManager.deleteData)
+collectionRouter.post('/delete', CollectionManager.deleteData)
 
 /**
  {
@@ -75,5 +75,7 @@ collectionRouter.delete('/delete', CollectionManager.deleteData)
 */
 
 collectionRouter.post('/alter', CollectionManager.alterCollection)
+
+collectionRouter.post('/delete', CollectionManager.deleteCollection)
 
 export default collectionRouter
