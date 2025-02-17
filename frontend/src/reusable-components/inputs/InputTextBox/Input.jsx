@@ -51,7 +51,7 @@ export default function Input({
             : "hidden"
         } w-full my-2 justify-start items-start`}
       >
-        <label className="flex items-center font-medium text-left text-gray-900 pl-1 pb-1 text-xs md:text-sm lg:text-base">
+        <label className="flex items-center font-medium text-left text-gray-500 pl-1 pb-1 text-xs md:text-sm lg:text-base">
           {name === "Username" ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
