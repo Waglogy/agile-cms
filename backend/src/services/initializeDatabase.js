@@ -6,10 +6,10 @@ const { Client } = pg
 
 // Connect to PostgreSQL (without specifying database)
 const adminClient = new Client({
-  host: 'localhost',
-  user: 'postgres',
-  password: 'root',
-  port: 5432,
+  host: envConfig.PG_HOST,
+  user: envConfig.PG_USER,
+  password: envConfig.PG_PASSWORD,
+  port: envConfig.PG_PORT,
   database: 'postgres', // Connect to the default database first
 })
 
@@ -37,13 +37,6 @@ async function initializeDatabase() {
     await adminClient.end()
 
     // ✅ Connect to the created database
-    /* const client = new Client({
-      host: 'localhost',
-      user: 'postgres',
-      password: 'root',
-      port: 5432,
-      database: envConfig.PG_DATABASE,
-    }) */
 
     await client.connect()
 

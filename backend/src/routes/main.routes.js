@@ -1,9 +1,9 @@
-import express from 'express'
+import { Router } from 'express'
 
-const appRouter = express.Router()
+const router = Router()
 
-appRouter.get((req, res) => {
+router.get((req, res) => {
   res.sendStatus(200)
 })
 
-export default appRouter
+export { router }

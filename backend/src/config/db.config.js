@@ -4,10 +4,10 @@ import envConfig from './env.config.js'
 const { Client } = pg
 
 const client = new Client({
-  host: 'localhost',
-  user: 'postgres',
-  password: 'root',
-  port: 5432,
+  host: envConfig.PG_HOST,
+  user: envConfig.PG_USER,
+  password: envConfig.PG_PASSWORD,
+  port: envConfig.PG_PORT,
   database: envConfig.PG_DATABASE,
 })
 

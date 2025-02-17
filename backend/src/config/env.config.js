@@ -22,6 +22,5 @@ const prodEnv = {
 }
 
 const envConfig = process.env.NODE_ENV != 'dev' ? prodEnv : devEnv
-// export default envConfig(process.env.NODE_ENV != 'dev') ? prodEnv : devEnv
 
 export default envConfig
