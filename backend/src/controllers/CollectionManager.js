@@ -1,21 +1,17 @@
 import queryExecutor from '../services/QueryExecutorFactory.js'
 import { collectionValidation } from '../validator/collection.validator.js'
+import joiValidator from '../utils/joiValidator.js'
 
 class CollectionManager {
   static async createTable(req, res) {
-    const { tableName, schema } = req.body
-
-    const { error } = collectionValidation.createTable.validate({
-      tableName,
-      schema,
-    })
-    if (error)
-      return res
-        .status(400)
-        .json({ success: false, message: error.details[0].message })
+    const validation = joiValidator(collectionValidation.createTable, req)
+    if (!validation.success) return res.status(400).json(validation)
 
     try {
-      const message = await queryExecutor.createCollection(tableName, schema)
+      const message = await queryExecutor.createCollection(
+        validation.value.tableName,
+        validation.value.schema
+      )
       return res.json({ success: true, message })
     } catch (err) {
       console.error('Error creating table:', err)
@@ -24,19 +20,14 @@ class CollectionManager {
   }
 
   static async insertData(req, res) {
-    const { tableName, data } = req.body
-
-    const { error } = collectionValidation.insertData.validate({
-      tableName,
-      data,
-    })
-    if (error)
-      return res
-        .status(400)
-        .json({ success: false, message: error.details[0].message })
+    const validation = joiValidator(collectionValidation.insertData, req)
+    if (!validation.success) return res.status(400).json(validation)
 
     try {
-      const success = await queryExecutor.insertData(tableName, data)
+      const success = await queryExecutor.insertData(
+        validation.value.tableName,
+        validation.value.data
+      )
       return res.json({ success })
     } catch (err) {
       console.error('Error inserting data:', err)
@@ -45,20 +36,15 @@ class CollectionManager {
   }
 
   static async updateData(req, res) {
-    const { tableName, id, updateData } = req.body
-
-    const { error } = collectionValidation.updateData.validate({
-      tableName,
-      id,
-      updateData,
-    })
-    if (error)
-      return res
-        .status(400)
-        .json({ success: false, message: error.details[0].message })
+    const validation = joiValidator(collectionValidation.updateData, req)
+    if (!validation.success) return res.status(400).json(validation)
 
     try {
-      const success = await queryExecutor.updateData(tableName, id, updateData)
+      const success = await queryExecutor.updateData(
+        validation.value.tableName,
+        validation.value.id,
+        validation.value.updateData
+      )
       return res.json({ success })
     } catch (err) {
       console.error('Error updating data:', err)
@@ -67,19 +53,14 @@ class CollectionManager {
   }
 
   static async deleteData(req, res) {
-    const { tableName, id } = req.body
-
-    const { error } = collectionValidation.deleteData.validate({
-      tableName,
-      id,
-    })
-    if (error)
-      return res
-        .status(400)
-        .json({ success: false, message: error.details[0].message })
+    const validation = joiValidator(collectionValidation.deleteData, req)
+    if (!validation.success) return res.status(400).json(validation)
 
     try {
-      const success = await queryExecutor.deleteData(tableName, id)
+      const success = await queryExecutor.deleteData(
+        validation.value.tableName,
+        validation.value.id
+      )
       return res.json({ success })
     } catch (err) {
       console.error('Error deleting data:', err)
