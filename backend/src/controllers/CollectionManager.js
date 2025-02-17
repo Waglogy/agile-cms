@@ -1,4 +1,4 @@
-import client from '../config/db.config.js'
+import queryExecutor from '../services/QueryExecutorFactory.js'
 import { collectionValidation } from '../validator/collection.validator.js'
 
 class CollectionManager {
@@ -15,14 +15,8 @@ class CollectionManager {
         .json({ success: false, message: error.details[0].message })
 
     try {
-      const result = await client.query('SELECT create_content_type($1, $2)', [
-        tableName,
-        schema,
-      ])
-      return res.json({
-        success: true,
-        message: result.rows[0].create_content_type,
-      })
+      const message = await queryExecutor.createCollection(tableName, schema)
+      return res.json({ success: true, message })
     } catch (err) {
       console.error('Error creating table:', err)
       return res.status(500).json({ success: false, message: 'Database error' })
@@ -42,11 +36,8 @@ class CollectionManager {
         .json({ success: false, message: error.details[0].message })
 
     try {
-      const result = await client.query(
-        'SELECT insert_into_content_type($1, $2)',
-        [tableName, data]
-      )
-      return res.json({ success: result.rows[0].insert_into_content_type })
+      const success = await queryExecutor.insertData(tableName, data)
+      return res.json({ success })
     } catch (err) {
       console.error('Error inserting data:', err)
       return res.status(500).json({ success: false, message: 'Database error' })
@@ -67,11 +58,8 @@ class CollectionManager {
         .json({ success: false, message: error.details[0].message })
 
     try {
-      const result = await client.query(
-        'SELECT update_content_type_data($1, $2, $3)',
-        [tableName, id, updateData]
-      )
-      return res.json({ success: result.rows[0].update_content_type_data })
+      const success = await queryExecutor.updateData(tableName, id, updateData)
+      return res.json({ success })
     } catch (err) {
       console.error('Error updating data:', err)
       return res.status(500).json({ success: false, message: 'Database error' })
@@ -91,11 +79,8 @@ class CollectionManager {
         .json({ success: false, message: error.details[0].message })
 
     try {
-      const result = await client.query(
-        'SELECT delete_content_type_data($1, $2)',
-        [tableName, id]
-      )
-      return res.json({ success: result.rows[0].delete_content_type_data })
+      const success = await queryExecutor.deleteData(tableName, id)
+      return res.json({ success })
     } catch (err) {
       console.error('Error deleting data:', err)
       return res.status(500).json({ success: false, message: 'Database error' })

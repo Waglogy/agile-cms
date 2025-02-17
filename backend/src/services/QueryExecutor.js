@@ -1,0 +1,90 @@
+import client from '../config/db.config.js'
+
+class QueryExecutorFactory {
+  constructor() {
+    if (!QueryExecutorFactory.instance) {
+      QueryExecutorFactory.instance = this
+    }
+    return QueryExecutorFactory.instance
+  }
+
+  async createCollection(tableName, schema) {
+    const result = await client.query('SELECT create_content_type($1, $2)', [
+      tableName,
+      schema,
+    ])
+    return result.rows[0].create_content_type
+  }
+
+  async insertData(tableName, data) {
+    const result = await client.query(
+      'SELECT insert_into_content_type($1, $2)',
+      [tableName, data]
+    )
+    return result.rows[0].insert_into_content_type
+  }
+
+  async updateData(tableName, id, updateData) {
+    const result = await client.query(
+      'SELECT update_content_type_data($1, $2, $3)',
+      [tableName, id, updateData]
+    )
+    return result.rows[0].update_content_type_data
+  }
+
+  async deleteData(tableName, id) {
+    const result = await client.query(
+      'SELECT delete_content_type_data($1, $2)',
+      [tableName, id]
+    )
+    return result.rows[0].delete_content_type_data
+  }
+
+  async initializeDatabase() {
+    const result = await client.query('SELECT initialize_database()')
+    return result.rows[0].initialize_database
+  }
+
+  async registerSuperAdmin(email, password) {
+    const result = await client.query('SELECT register_super_admin($1, $2)', [
+      email,
+      password,
+    ])
+    return result.rows[0].register_super_admin
+  }
+
+  async registerUser(email, password, role) {
+    const result = await client.query('SELECT register_user($1, $2, $3)', [
+      email,
+      password,
+      role,
+    ])
+    return result.rows[0].register_user
+  }
+
+  async assignRoleToUser(email, role) {
+    const result = await client.query('SELECT assign_role_to_user($1, $2)', [
+      email,
+      role,
+    ])
+    return result.rows[0].assign_role_to_user
+  }
+
+  async getUserRole(email) {
+    const result = await client.query('SELECT get_user_role($1)', [email])
+    return result.rows.map((row) => row.role_name)
+  }
+
+  async authenticateUser(email, password) {
+    const result = await client.query('SELECT authenticate_user($1, $2)', [
+      email,
+      password,
+    ])
+    return result.rows[0].authenticate_user
+  }
+}
+
+// Export a single instance
+const queryExecutor = new QueryExecutorFactory()
+Object.freeze(queryExecutor) // Prevent modifications to the instance
+export default queryExecutor

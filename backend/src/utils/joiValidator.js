@@ -1,5 +1,3 @@
-import Joi from 'joi'
-
 export default joiValidator = (schema, req) => {
   const { error, value } = schema.validate(req.body, {
     abortEarly: false,
