@@ -4,7 +4,7 @@ import initializeDatabase from './services/initializeDatabase.js'
 
 initializeDatabase()
   .then(() => {
-    console.log('Everything Is running as aspected')
+    console.log('Everything Is running as expected 😏')
     app.listen(envConfig.PORT ?? 3000, () => {
       console.log('App Sterted Successfully')
       console.log(`End Point: http://localhost:${envConfig.PORT ?? 3000}`)
