@@ -76,6 +76,18 @@ collectionRouter.post('/delete', CollectionManager.deleteData)
 
 collectionRouter.post('/alter', CollectionManager.alterCollection)
 
+/**
+ {
+  "tableName": "blogs"
+  }
+*/
+
 collectionRouter.post('/delete', CollectionManager.deleteCollection)
+
+/**
+ it is a GET query -  duhhh :D
+*/
+
+collectionRouter.get('/', CollectionManager.getAllCollections)
 
 export default collectionRouter
