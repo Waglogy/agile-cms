@@ -51,8 +51,7 @@ class QueryExecutorFactory {
   }
   async getAllCollections() {
     const result = await client.query('SELECT * FROM get_all_collections()')
-
-    return result.rows[0].json_agg
+    return result.rows[0]
   }
   async alterCollection(tableName, columnName, columnType, constraints = '') {
     const result = await client.query(

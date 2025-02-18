@@ -77,12 +77,12 @@ collectionRouter.post('/delete', CollectionManager.deleteData)
 collectionRouter.post('/alter', CollectionManager.alterCollection)
 
 /**
- {
-  "tableName": "blogs"
-  }
+{
+    "collectionName":"blogs"
+}
 */
 
-collectionRouter.post('/delete', CollectionManager.deleteCollection)
+collectionRouter.post('/delete-collection', CollectionManager.deleteCollection)
 
 /**
  it is a GET query -  duhhh :D
