@@ -32,7 +32,41 @@ class CollectionManager {
   }
 
   static async deleteCollection(req, res, next) {
-    // TODO Should be done by reesav
+    const { collectionName } = req.body
+
+    if (!collectionName) {
+      return next(new AppError(400, 'Collection name is required'))
+    }
+
+    try {
+      const result = await queryExecutor.deleteCollection(collectionName)
+
+      if (!result.success) {
+        return next(new AppError(404, result.message))
+      }
+
+      return res.json({ success: true, message: result.message })
+    } catch (err) {
+      console.error(`Error deleting table '${collectionName}':`, err)
+      return next(
+        new AppError(500, `Failed to delete table '${collectionName}'`, err)
+      )
+    }
+  }
+
+  static async getAllCollections(req, res, next) {
+    try {
+      const collections = await queryExecutor.getAllCollections()
+
+      if (!collections) {
+        return next(new AppError(404, 'No collections found'))
+      }
+
+      return res.json({ success: true, data: collections })
+    } catch (err) {
+      console.error('Error fetching collections:', err)
+      return next(new AppError(500, 'Failed to fetch collections', err))
+    }
   }
 
   static async insertData(req, res, next) {

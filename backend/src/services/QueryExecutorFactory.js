@@ -41,12 +41,18 @@ class QueryExecutorFactory {
   }
 
   async deleteCollection(tableName) {
-    const result = await client.query('SELECT delete_content_type_table($1)', [
+    const result = await client.query('SELECT * FROM delete_collection($1)', [
       tableName,
     ])
-    return result.rows[0].delete_content_type_table
-  }
 
+    const { success, message } = result.rows[0]
+
+    return { success, message }
+  }
+  async getAllCollections() {
+    const result = await client.query('SELECT * FROM get_all_collections()')
+    return result.rows[0]
+  }
   async alterCollection(tableName, columnName, columnType, constraints = '') {
     const result = await client.query(
       'SELECT alter_content_type($1, $2, $3, $4)',

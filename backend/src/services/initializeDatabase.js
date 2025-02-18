@@ -414,6 +414,66 @@ $$ LANGUAGE plpgsql;`)
     await client.query(
       `INSERT INTO settings (key, value) VALUES ('initialized', 'true') ON CONFLICT (key) DO NOTHING;`
     )
+
+    // delet collection
+    await client.query(
+      `CREATE OR REPLACE FUNCTION delete_collection(p_table_name TEXT)
+    RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
+    DECLARE
+        table_exists BOOLEAN;
+    BEGIN
+        -- Check if table exists
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'public'
+            AND table_name = p_table_name
+        ) INTO table_exists;
+
+        IF NOT table_exists THEN
+            RETURN QUERY SELECT FALSE, format('Table "%s" does not exist', p_table_name);
+            RETURN;
+        END IF;
+
+        -- Execute dynamic SQL to drop the table
+        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', p_table_name);
+
+        RETURN QUERY SELECT TRUE, format('Table "%s" deleted successfully', p_table_name);
+    EXCEPTION
+        WHEN OTHERS THEN
+            RETURN QUERY SELECT FALSE, format('Error deleting table "%s": %s', p_table_name, SQLERRM);
+    END;
+    $$ LANGUAGE plpgsql;`
+    )
+
+    await client.query(`
+        CREATE OR REPLACE FUNCTION get_all_collections()
+        RETURNS JSON AS $$
+        DECLARE
+            result JSON;
+        BEGIN
+            SELECT json_agg(table_data) INTO result
+            FROM (
+                SELECT
+                    table_name AS collection_name,
+                    (SELECT json_agg(
+                                json_build_object(
+                                    'column_name', column_name,
+                                    'data_type', data_type
+                                )
+                            )
+                    FROM information_schema.columns c
+                    WHERE c.table_name = t.table_name
+                    AND c.table_schema = 'public'
+                    ) AS columns
+                FROM information_schema.tables t
+                WHERE t.table_schema = 'public'
+                ORDER BY t.table_name
+            ) AS table_data;
+
+            RETURN result;
+        END;
+        $$ LANGUAGE plpgsql;
+      `)
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
