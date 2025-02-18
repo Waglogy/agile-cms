@@ -11,9 +11,13 @@ const ContentBuilder = () => {
     const [modalContent, setModalContent] = useState("");
     const [isModalOpen, setModalOpen] = useState(false);
     const {register, handleSubmit, formState:{errors}, setError, clearErrors, setValue} = useForm();
-    const onSubmit = (data) => {
-        console.log(data)
-    }
+    // const onSubmit = async (data) => {
+    //     const postData = {
+    //         "table_name": data.table_name.toLowerCase().replace(/\s+/g, '_'),
+    //         "schema":{
+                
+    //         }            
+    // }
     return (
         <>
             <Header />
@@ -23,13 +27,13 @@ const ContentBuilder = () => {
 
             {/* Popup when create new collection is clicked */}
             {isModalOpen && (<PopUp show={isModalOpen} modalContent={modalContent}>
-                
+                 
                 <form className="mt-4 flex flex-col " onSubmit={handleSubmit(onSubmit)}>
                     <label htmlFor="collecion_name" className="text-xs font-bold" >Collection Name</label>
                     <Input 
-                        defaultName="Display_name"
+                        defaultName="Display Name"
                         register={register}
-                        name="Display Name"
+                        name="tableName"
                         required={true}
                         pattern={null}
                         errors={errors}
