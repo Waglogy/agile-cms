@@ -1,9 +1,11 @@
 import express from 'express'
 import apiRouter from './routes/api.routes.js'
+import cors from 'cors';
 import AppError from './utils/AppError.js'
 
 const app = express()
 
+app.use(cors())
 // middlewares
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))

@@ -17,6 +17,16 @@ export default function Input({
   showInput,
   ...rest
 }) {
+  const handleChange = async (e) => {
+    const value = e.target.value;
+    
+    // In ALL places where you use onChangeInput:
+    if (onChangeInput) {
+      // From: await onChangeInput(e?.target?.value)
+      await onChangeInput(value); // ✅ Pass value directly
+    }
+  };
+
   const { onChange, ...props } = register(defaultName, {
     required: required,
     pattern: pattern,
@@ -87,89 +97,7 @@ export default function Input({
           onBlur={async (e) => {
             rest?.onBlur(e);
           }}
-          onChange={async (e) => {
-            // setFormErrMsg("");
-            if (e.target.value === "") {
-              if (required) {
-                setError(defaultName, {
-                  type: "required",
-                  message: `${name} is required`,
-                });
-              } else {
-                clearError(defaultName);
-                clearError(`${defaultName}_onChange`);
-                onChange(e);
-              }
-              if (onChangeInput !== null) {
-                onChangeInput(e?.target?.value);
-              }
-              // onChange(e);
-            } else if (pattern !== null) {
-              if (!pattern.test(e.target.value)) {
-                clearError(defaultName);
-                clearError(`${defaultName}_onChange`);
-                setError(defaultName, {
-                  type: "pattern",
-                  message: `${name} is not valid`,
-                });
-              } else {
-                if (onChangeInput !== null) {
-                  clearError(defaultName);
-                  clearError(`${defaultName}_onChange`);
-                  const res = await onChangeInput(e?.target?.value);
-                  if (res) {
-                    setError(`${defaultName}_onChange`, {
-                      type: "manual",
-                      message: `${name} is not available`,
-                    });
-                  } else {
-                    clearError(`${defaultName}_onChange`);
-                    onChange(e);
-                  }
-                } else {
-                  onChange(e);
-                }
-              }
-            } else if (onChangeInput !== null) {
-              const res = await onChangeInput(e.target.value);
-              if (res) {
-                setError(`${defaultName}_onChange`, {
-                  type: "manual",
-                  message: `${name} is not available`,
-                });
-              } else {
-                clearError(`${defaultName}_onChange`);
-                onChange(e);
-              }
-            } else {
-              clearError(defaultName);
-              clearError(`${defaultName}_onChange`);
-
-              onChange(e);
-            }
-            if (rest?.type === "number") {
-              if (parseInt(e.target.value) < parseInt(rest?.min)) {
-                setError(`${defaultName}_onChange`, {
-                  type: "manual",
-                  message: `${name} is less than expected`,
-                });
-              } else {
-                clearError(`${defaultName}_onChange`);
-                onChange(e);
-              }
-            }
-            if (rest?.type === "date") {
-              if (new Date(e.target.value) > new Date(rest?.max)) {
-                setError(`${defaultName}_onChange`, {
-                  type: "manual",
-                  message: `${name} is less than expected`,
-                });
-              } else {
-                clearError(`${defaultName}_onChange`);
-                onChange(e);
-              }
-            }
-          }}
+          onChange={handleChange}
           {...props}
           {...rest}
           autoSave="off"
@@ -189,8 +117,7 @@ export default function Input({
           />
         )}
         {errors[defaultName] && errors[defaultName].type === "pattern" && (
-          <Error
-            classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
+          <Error classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
             message={`${name} is not valid`}
           />
         )}
