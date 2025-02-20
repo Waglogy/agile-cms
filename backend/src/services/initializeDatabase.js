@@ -474,6 +474,17 @@ $$ LANGUAGE plpgsql;`)
         END;
         $$ LANGUAGE plpgsql;
       `)
+    //get all users
+    // await client.query(`
+    //     CREATE OR REPLACE FUNCTION get_all_users()
+    //     RETURNS TABLE(id UUID, email TEXT, created_at TIMESTAMP) AS $$
+    //     BEGIN
+    //         RETURN QUERY
+    //         SELECT u.id, u.email, u.created_at, u.
+    //         FROM users u;
+    //     END;
+    //     $$ LANGUAGE plpgsql;
+    // `)
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }

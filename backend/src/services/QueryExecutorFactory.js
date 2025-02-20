@@ -90,7 +90,10 @@ class QueryExecutorFactory {
     const result = await client.query('SELECT get_user_role($1)', [email])
     return result.rows.map((row) => row.role_name)
   }
-
+  async getAllUsers() {
+    const result = await client.query(`SELECT * FROM get_all_users()`)
+    return result.rows
+  }
   async authenticateUser(email, password) {
     const result = await client.query('SELECT authenticate_user($1, $2)', [
       email,
