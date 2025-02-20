@@ -253,10 +253,10 @@ $$ LANGUAGE plpgsql;
     // register super user function
     await client.query(`
       CREATE OR REPLACE FUNCTION register_super_admin(
+        p_firstname TEXT,
+        p_lastname TEXT,
     p_email TEXT,
-    p_password TEXT,
-    p_firstname TEXT,
-    p_lastname TEXT
+    p_password TEXT
 ) RETURNS BOOLEAN AS $$
 DECLARE
     hashed_password TEXT;
@@ -379,31 +379,40 @@ $$ LANGUAGE plpgsql;`)
     await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
     p_email TEXT,
     p_password TEXT
-) RETURNS BOOLEAN AS $$
+) RETURNS JSON AS $$
 DECLARE
+    user_json JSON;
     stored_hash TEXT;
-    auth_success BOOLEAN;
 BEGIN
-    -- Retrieve the hashed password from the database
-    SELECT password_hash INTO stored_hash
+    -- Retrieve the user details along with the hashed password
+    SELECT json_build_object(
+        'id', id,
+        'email', email,
+        'first_name', first_name,
+        'last_name', last_name
+    ), password_hash
+    INTO user_json, stored_hash
     FROM users
     WHERE email = p_email;
 
-    -- If no user found, return FALSE
-    IF stored_hash IS NULL THEN
-        RETURN FALSE;
+    -- If no user found, return NULL
+    IF user_json IS NULL THEN
+        RETURN 'false';
     END IF;
 
     -- Compare provided password with stored hash
-    auth_success := (stored_hash = crypt(p_password, stored_hash));
+    IF NOT (stored_hash = crypt(p_password, stored_hash)) THEN
+        RETURN 'false';
+    END IF;
 
-    RETURN auth_success;
+    RETURN user_json;
 EXCEPTION
     WHEN OTHERS THEN
         RAISE NOTICE 'Error: %', SQLERRM;
-        RETURN FALSE;
+        RETURN NULL;
 END;
-$$ LANGUAGE plpgsql;`)
+$$ LANGUAGE plpgsql;
+`)
 
     // find user to check in the db for login
     await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
@@ -496,8 +505,8 @@ $$ LANGUAGE plpgsql;
         END;
         $$ LANGUAGE plpgsql;
       `)
-      await client.query(
-        `
+    await client.query(
+      `
               CREATE OR REPLACE FUNCTION get_all_users()  
               RETURNS TABLE(id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT) AS $$  
               BEGIN  
@@ -511,7 +520,7 @@ $$ LANGUAGE plpgsql;
               $$ LANGUAGE plpgsql;
           
           `
-      )
+    )
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }

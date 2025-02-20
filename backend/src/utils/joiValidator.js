@@ -6,7 +6,7 @@ const joiValidator = (schema, req) => {
       success: false,
       errors: error.details.map((err) => ({
         field: err.path.join('.'),
-        message: err.message.replace(/"/g, ''), 
+        message: err.message.replace(/"/g, ''),
       })),
     }
   }

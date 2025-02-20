@@ -104,6 +104,8 @@ SELECT insert_into_content_type(
 );
 ```
 
+## Function to alter table
+
 - ### Function to delete data from dynamic tables
 
 ```sql
@@ -492,29 +494,37 @@ SELECT get_user_role('user@example.com');
 CREATE OR REPLACE FUNCTION authenticate_user(
     p_email TEXT,
     p_password TEXT
-) RETURNS BOOLEAN AS $$
+) RETURNS JSON AS $$
 DECLARE
+    user_json JSON;
     stored_hash TEXT;
-    auth_success BOOLEAN;
 BEGIN
-    -- Retrieve the hashed password from the database
-    SELECT password_hash INTO stored_hash
+    -- Retrieve the user details along with the hashed password
+    SELECT json_build_object(
+        'id', id,
+        'email', email,
+        'first_name', first_name,
+        'last_name', last_name
+    ), password_hash
+    INTO user_json, stored_hash
     FROM users
     WHERE email = p_email;
 
-    -- If no user found, return FALSE
-    IF stored_hash IS NULL THEN
-        RETURN FALSE;
+    -- If no user found, return NULL
+    IF user_json IS NULL THEN
+        RETURN 'false';
     END IF;
 
     -- Compare provided password with stored hash
-    auth_success := (stored_hash = crypt(p_password, stored_hash));
+    IF NOT (stored_hash = crypt(p_password, stored_hash)) THEN
+        RETURN 'false';
+    END IF;
 
-    RETURN auth_success;
+    RETURN user_json;
 EXCEPTION
     WHEN OTHERS THEN
         RAISE NOTICE 'Error: %', SQLERRM;
-        RETURN FALSE;
+        RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 ```

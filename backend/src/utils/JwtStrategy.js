@@ -1,7 +1,7 @@
 import { Strategy, ExtractJwt } from 'passport-jwt'
 import passport from 'passport'
-import envConfig from '../config/env.config'
-import queryExecutor from '../services/QueryExecutorFactory'
+import envConfig from '../config/env.config.js'
+import queryExecutor from '../services/QueryExecutorFactory.js'
 
 passport.use(
   new Strategy(
@@ -10,11 +10,20 @@ passport.use(
       secretOrKey: envConfig.JWT_SECRET,
     },
     async (jwt_payload, done) => {
-      // TODO
+      try {
+        const authenticatedUser = await queryExecutor.findUser(
+          jwt_payload.email
+        )
 
-      console.log(jwt_payload)
+        if (!authenticatedUser) {
+          return done(null, false) // Return false for an invalid user
+        }
 
-      //await foo = queryExecutor.findUser()
+        return done(null, jwt_payload) // Pass authenticated user object
+      } catch (error) {
+        console.error('Error during authentication:', error)
+        return done(error, false) // Return error if query fails
+      }
     }
   )
 )

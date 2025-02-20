@@ -63,13 +63,13 @@ class QueryExecutorFactory {
     return result.rows[0].alter_content_type
   }
 
-  async registerSuperAdmin(email, password, first_name, last_name) {
+  async registerSuperAdmin(first_name, last_name, email, password) {
+    console.log(first_name, last_name, email, password)
+
     const result = await client.query(
       'SELECT register_super_admin($1, $2, $3, $4)',
-      [email, password, first_name, last_name]
+      [first_name, last_name, email, password]
     )
-
-    console.log(result)
 
     return result.rows[0].register_super_admin
 
@@ -100,7 +100,7 @@ class QueryExecutorFactory {
 
   async getUserRole(email) {
     const result = await client.query('SELECT get_user_role($1)', [email])
-    return result.rows.map((row) => row.role_name)
+    return result.rows[0].get_user_role
   }
   async getAllUsers() {
     const result = await client.query(`SELECT * FROM get_all_users()`)

@@ -11,6 +11,7 @@ const devEnv = {
   PG_HOST: process.env.PG_HOST,
   PG_PORT: process.env.PG_PORT,
   PG_DATABASE: process.env.PG_DATABASE,
+  JWT_SECRET: process.env.JWT_SECRET,
 }
 
 const prodEnv = {
@@ -19,6 +20,7 @@ const prodEnv = {
   PG_HOST: process.env.PG_HOST,
   PG_PORT: process.env.PG_PORT,
   PG_DATABASE: process.env.PG_DATABASE,
+  JWT_SECRET: process.env.JWT_SECRET,
 }
 
 const envConfig = process.env.NODE_ENV != 'dev' ? prodEnv : devEnv
