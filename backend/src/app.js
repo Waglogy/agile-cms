@@ -4,9 +4,13 @@ import AppError from './utils/AppError.js'
 
 const app = express()
 
+import './utils/JwtStrategy.js'
+import passport from 'passport'
+
 // middlewares
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
+app.use(passport.initialize())
 
 // use app router
 app.use('/api', apiRouter)
