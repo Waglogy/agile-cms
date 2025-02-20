@@ -21,14 +21,15 @@ export const registerSuperUser = asyncHandler(async (req, res) => {
   if (isUserExists)
     throw new AppError(400, 'registration failed', 'user alredy exists')
 
-  const foo = await queryExecutor.registerSuperAdmin(
+  const superAdminRegistrationResult = await queryExecutor.registerSuperAdmin(
     validationResult.value.first_name,
     validationResult.value.last_name,
     validationResult.value.email,
     validationResult.value.password
   )
 
-  if (!foo) throw new AppError(400, 'registration failed', null)
+  if (!superAdminRegistrationResult)
+    throw new AppError(400, 'registration failed', null)
 
   res.status(201).json({
     success: true,

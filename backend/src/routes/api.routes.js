@@ -1,8 +1,8 @@
-import { application, Router } from 'express'
+import { Router } from 'express'
 import authRouter from './auth.routes.js'
 import collectionRouter from './collection.routes.js'
-import passport from 'passport'
 import authenticateUser from '../middlewares/auth.middleware.js'
+
 const apiRouter = Router()
 
 // use auth router

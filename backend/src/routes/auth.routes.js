@@ -2,10 +2,7 @@ import { Router } from 'express'
 import {
   getAllUsers,
   registerSuperUser,
-} from '../controllers/user.controllers.js'
-import {
   loginUser,
-  registerSuperUser,
 } from '../controllers/user.controllers.js'
 
 const authRouter = Router()

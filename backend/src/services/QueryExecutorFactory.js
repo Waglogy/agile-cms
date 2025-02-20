@@ -64,8 +64,6 @@ class QueryExecutorFactory {
   }
 
   async registerSuperAdmin(first_name, last_name, email, password) {
-    console.log(first_name, last_name, email, password)
-
     const result = await client.query(
       'SELECT register_super_admin($1, $2, $3, $4)',
       [first_name, last_name, email, password]
