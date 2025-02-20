@@ -496,17 +496,22 @@ $$ LANGUAGE plpgsql;
         END;
         $$ LANGUAGE plpgsql;
       `)
-    //get all users
-    // await client.query(`
-    //     CREATE OR REPLACE FUNCTION get_all_users()
-    //     RETURNS TABLE(id UUID, email TEXT, created_at TIMESTAMP) AS $$
-    //     BEGIN
-    //         RETURN QUERY
-    //         SELECT u.id, u.email, u.created_at, u.
-    //         FROM users u;
-    //     END;
-    //     $$ LANGUAGE plpgsql;
-    // `)
+      await client.query(
+        `
+              CREATE OR REPLACE FUNCTION get_all_users()  
+              RETURNS TABLE(id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT) AS $$  
+              BEGIN  
+                  RETURN QUERY  
+                  SELECT u.id, u.first_name, u.last_name, u.email, r.name AS role  
+                  FROM users u  
+                  LEFT JOIN user_roles ur ON u.id = ur.user_id  
+                  LEFT JOIN roles r ON ur.role_id = r.id  
+                  ORDER BY u.created_at DESC;  
+              END;  
+              $$ LANGUAGE plpgsql;
+          
+          `
+      )
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }

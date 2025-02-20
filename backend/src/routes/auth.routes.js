@@ -1,11 +1,13 @@
 import { Router } from 'express'
-import { registerSuperUser } from '../controllers/user.controllers.js'
+import {
+  getAllUsers,
+  registerSuperUser,
+} from '../controllers/user.controllers.js'
 
 const authRouter = Router()
 
 authRouter.route('/signup').post(registerSuperUser)
 
-authRouter.get('/all-users', )
-
+authRouter.route('/get-all-users').get(getAllUsers)
 
 export default authRouter

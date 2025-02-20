@@ -28,3 +28,12 @@ export const registerSuperUser = asyncHandler(async (req, res) => {
     message: 'super user registration successful',
   })
 })
+
+export const getAllUsers = asyncHandler(async (req, res) => {
+  const users = await queryExecutor.getAllUsers()
+
+  res.status(200).json({
+    success: true,
+    data: users,
+  })
+})
