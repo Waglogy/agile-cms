@@ -71,6 +71,8 @@ async function initializeDatabase() {
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
           email TEXT UNIQUE NOT NULL,
           password_hash TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
@@ -248,11 +250,13 @@ $$ LANGUAGE plpgsql;
 
       `)
 
-    // register super function function
+    // register super user function
     await client.query(`
       CREATE OR REPLACE FUNCTION register_super_admin(
     p_email TEXT,
-    p_password TEXT
+    p_password TEXT,
+    p_firstname TEXT,
+    p_lastname TEXT
 ) RETURNS BOOLEAN AS $$
 DECLARE
     hashed_password TEXT;
@@ -271,9 +275,9 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    -- Insert the Super Admin user
-    INSERT INTO users (email, password_hash, created_at)
-    VALUES (p_email, hashed_password, NOW())
+    -- Insert the Super Admin user with firstname and lastname
+    INSERT INTO users (email, password_hash, first_name, last_name, created_at)
+    VALUES (p_email, hashed_password, p_firstname, p_lastname, NOW())
     RETURNING id INTO super_admin_id;
 
     -- Assign the Super Admin role to this user
@@ -287,7 +291,7 @@ EXCEPTION
         RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
-      `)
+`)
 
     // register normal user or content user
     await client.query(`CREATE OR REPLACE FUNCTION register_user(
@@ -400,6 +404,24 @@ EXCEPTION
         RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;`)
+
+    // find user to check in the db for login
+    await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
+RETURNS BOOLEAN AS $$
+DECLARE
+    user_exists BOOLEAN;
+BEGIN
+    -- Check if user exists
+    SELECT EXISTS (SELECT 1 FROM users WHERE email = p_email) INTO user_exists;
+    
+    RETURN user_exists;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error finding user: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+`)
 
     console.log('✅ Functions created successfully!')
 

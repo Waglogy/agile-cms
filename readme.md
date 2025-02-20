@@ -331,7 +331,9 @@ $$ LANGUAGE plpgsql;
 ```sql
 CREATE OR REPLACE FUNCTION register_super_admin(
     p_email TEXT,
-    p_password TEXT
+    p_password TEXT,
+    p_firstname TEXT,
+    p_lastname TEXT
 ) RETURNS BOOLEAN AS $$
 DECLARE
     hashed_password TEXT;
@@ -350,9 +352,9 @@ BEGIN
         RETURN FALSE;
     END IF;
 
-    -- Insert the Super Admin user
-    INSERT INTO users (email, password_hash, created_at)
-    VALUES (p_email, hashed_password, NOW())
+    -- Insert the Super Admin user with firstname and lastname
+    INSERT INTO users (email, password_hash, firstname, lastname, created_at)
+    VALUES (p_email, hashed_password, p_firstname, p_lastname, NOW())
     RETURNING id INTO super_admin_id;
 
     -- Assign the Super Admin role to this user
@@ -521,4 +523,31 @@ $$ LANGUAGE plpgsql;
 
 ```sql
 SELECT authenticate_user('admin@example.com', 'SuperSecurePassword');
+```
+
+## Find the user if exists or not.
+
+```sql
+CREATE OR REPLACE FUNCTION find_user(p_email TEXT)
+RETURNS BOOLEAN AS $$
+DECLARE
+    user_exists BOOLEAN;
+BEGIN
+    -- Check if user exists
+    SELECT EXISTS (SELECT 1 FROM users WHERE email = p_email) INTO user_exists;
+
+    RETURN user_exists;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error finding user: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+- Query
+- Return: Boolean
+
+```sql
+SELECT find_users('user@example.com');
 ```

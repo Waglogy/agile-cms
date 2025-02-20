@@ -49,10 +49,12 @@ class QueryExecutorFactory {
 
     return { success, message }
   }
+
   async getAllCollections() {
     const result = await client.query('SELECT * FROM get_all_collections()')
     return result.rows[0]
   }
+
   async alterCollection(tableName, columnName, columnType, constraints = '') {
     const result = await client.query(
       'SELECT alter_content_type($1, $2, $3, $4)',
@@ -61,12 +63,22 @@ class QueryExecutorFactory {
     return result.rows[0].alter_content_type
   }
 
-  async registerSuperAdmin(email, password) {
-    const result = await client.query('SELECT register_super_admin($1, $2)', [
-      email,
-      password,
-    ])
+  async registerSuperAdmin(email, password, first_name, last_name) {
+    const result = await client.query(
+      'SELECT register_super_admin($1, $2, $3, $4)',
+      [email, password, first_name, last_name]
+    )
+
+    console.log(result)
+
     return result.rows[0].register_super_admin
+
+    /* SELECT register_super_admin(
+      'admin@example.com',
+      'SuperSecurePassword',
+      'John',
+      'Doe'
+  ); */
   }
 
   async registerUser(email, password, role) {
@@ -100,6 +112,11 @@ class QueryExecutorFactory {
       password,
     ])
     return result.rows[0].authenticate_user
+  }
+
+  async findUser(email) {
+    const result = await client.query('SELECT find_user($1)', [email])
+    return result.rows[0].find_user
   }
 }
 
