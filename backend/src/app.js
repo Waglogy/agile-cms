@@ -9,6 +9,7 @@ import './utils/JwtStrategy.js'
 import passport from 'passport'
 
 // middlewares
+app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: false }))
 app.use(passport.initialize())
@@ -17,7 +18,7 @@ app.use(passport.initialize())
 app.use('/api', apiRouter)
 
 //global error handler
-app.use((err, req, res, next) => {
+app.use((err, req, res, _) => {
   console.log(err)
 
   if (err instanceof AppError)
