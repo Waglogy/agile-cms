@@ -6,6 +6,33 @@ import Input from "../../reusable-components/inputs/InputTextBox/Input";
 import PasswordInput from "../../reusable-components/inputs/InputTextBox/PasswordInput";
 import bbLogo from "../../assets/bbLogo.png"
 import Header from "../../components/Header";
+import bcryptjs from 'bcryptjs' 
+import CreateUser from "../../api/super_admin/CreateUser"
+const handleLogin = async (data) => {
+    try{
+        
+        const tableName = "users"
+        const passwordHash = await hashPassword(data.password)
+        const postData = {
+            tableName,
+            data: {
+                email : data.email,
+                password_hash: passwordHash,
+                created_at : localDate
+            }
+        }
+        CreateUser(postData)
+        console.log(postData)
+    }catch (error){
+        console.error(error)
+    }
+}
+const hashPassword = async (password) => {
+    const saltRounds = 10; // Number of salt rounds (higher = more secure but slower)
+    const hashedPassword = await bcryptjs.hash(password, saltRounds);
+    return hashedPassword;
+};
+
 const LoginForm = () => {
     const navigate = useNavigate();
 
@@ -53,7 +80,7 @@ const LoginForm = () => {
                     <section className="w-[80%] md:w-[50%] lg:w-[40%] xl:w-[30%] 2xl:w-[25%] h-[40%] p-5 rounded-md shadow-lg bg-white ">
                         <p className="text-center text-primary text-base md:text-lg lg:text-xl font-semibold mb-3"> Admin Login</p>
 
-                        <form onSubmit={handleSubmit(onSubmitLogin)}>
+                        <form onSubmit={handleSubmit(handleLogin)}>
                             <Input 
                                 defaultName="email"
                                 register={register}
@@ -61,7 +88,7 @@ const LoginForm = () => {
                                 required={true}
                                 pattern={null}
                                 errors={errors}
-                                placeholder="Enter username"
+                                placeholder="Email"
                                 setError={setError}
                                 clearError={clearErrors}
                                 autoComplete="off"
@@ -76,7 +103,7 @@ const LoginForm = () => {
                             <PasswordInput
                                 id="myPasswordInput"
                                 type={"password"}
-                                defaultName="user_password"
+                                defaultName="password"
                                 register={register}
                                 name="Password"
                                 required={true}
