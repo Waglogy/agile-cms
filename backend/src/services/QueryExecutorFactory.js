@@ -78,7 +78,33 @@ class QueryExecutorFactory {
       'Doe'
   ); */
   }
+  async getCollectionByName(tableName) {
+    const result = await client.query('SELECT get_collection_by_name($1)', [
+      tableName,
+    ])
+    return result.rows[0].get_collection_by_name
+  }
 
+  async deleteAttributeFromCollection(tableName, columnName) {
+    const result = await client.query(
+      'SELECT delete_attribute_from_collection($1, $2)',
+      [tableName, columnName]
+    )
+    return result.rows[0].delete_attribute_from_collection
+  }
+
+  async getCollectionData(tableName) {
+    const result = await client.query('SELECT get_collection_data($1)', [
+      tableName,
+    ])
+    return result.rows[0].get_collection_data
+  }
+
+  // ***********************USEERRRRR METHODS*****************************
+  // *********************************************************************
+  // *********************************************************************
+  // *********************************************************************
+  // *********************************************************************
   async registerUser(email, password, role) {
     const result = await client.query('SELECT register_user($1, $2, $3)', [
       email,

@@ -72,6 +72,76 @@ class CollectionManager {
     }
   }
 
+  static async getCollectionByName(req, res, next) {
+    const { tableName } = req.params
+
+    if (!tableName) {
+      return next(new AppError(400, 'Table name is required'))
+    }
+
+    try {
+      const collection = await queryExecutor.getCollectionByName(tableName)
+
+      if (!collection) {
+        return next(new AppError(404, 'Collection not found'))
+      }
+
+      return res.json({ success: true, data: collection })
+    } catch (err) {
+      console.error(`Error fetching collection '${tableName}':`, err)
+      return next(
+        new AppError(500, `Failed to fetch collection '${tableName}'`, err)
+      )
+    }
+  }
+
+  static async deleteAttributeFromCollection(req, res, next) {
+    const { tableName, columnName } = req.body
+
+    if (!tableName || !columnName) {
+      return next(new AppError(400, 'Table name and column name are required'))
+    }
+
+    try {
+      const success = await queryExecutor.deleteAttributeFromCollection(
+        tableName,
+        columnName
+      )
+      return res.json({ success })
+    } catch (err) {
+      console.error(
+        `Error deleting attribute '${columnName}' from '${tableName}':`,
+        err
+      )
+      return next(
+        new AppError(500, `Failed to delete attribute '${columnName}'`, err)
+      )
+    }
+  }
+
+  static async getCollectionData(req, res, next) {
+    const { tableName } = req.params
+
+    if (!tableName) {
+      return next(new AppError(400, 'Table name is required'))
+    }
+
+    try {
+      const data = await queryExecutor.getCollectionData(tableName)
+
+      if (!data) {
+        return next(new AppError(404, 'No data found for the collection'))
+      }
+
+      return res.json({ success: true, data })
+    } catch (err) {
+      console.error(`Error fetching data for '${tableName}':`, err)
+      return next(
+        new AppError(500, `Failed to fetch data for '${tableName}'`, err)
+      )
+    }
+  }
+
   /* static async insertData(req, res, next) {
     const validation = joiValidator(collectionValidation.insertData, req)
     if (!validation.success)

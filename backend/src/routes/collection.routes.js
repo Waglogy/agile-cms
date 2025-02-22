@@ -100,4 +100,22 @@ collectionRouter.post('/delete-collection', CollectionManager.deleteCollection)
 
 collectionRouter.get('/', CollectionManager.getAllCollections)
 
+/*
+ ** Get a specific collection by name
+ */
+collectionRouter.get('/:tableName', CollectionManager.getCollectionByName)
+
+/*
+ ** Delete an attribute (column) from a collection
+ */
+collectionRouter.post(
+  '/attribute/delete',
+  CollectionManager.deleteAttributeFromCollection
+)
+
+/*
+ ** Get all data from a specific collection
+ */
+collectionRouter.get('/data/:tableName', CollectionManager.getCollectionData)
+
 export default collectionRouter
