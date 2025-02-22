@@ -7,7 +7,6 @@ const app = express()
 
 import './utils/JwtStrategy.js'
 import passport from 'passport'
-import upload from './config/multer.config.js'
 
 // middlewares
 app.use(cors())
