@@ -26,33 +26,56 @@ export const collectionValidation = {
       .required(),
   }),
 
-  /* insertData: Joi.object({
-    tableName: Joi.string()
-      .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
-      .required(),
-    data: Joi.object().min(1).required(),
-  }),
- */
+  dynamicSchema: (collection) => {
+    const schemaObject = {}
 
-  insertData: (data) => {
-    const schemaShape = {}
+    collection.forEach(({ column_name, data_type }) => {
+      let joiType
 
-    // Dynamically create validation rules based on input fields
-    for (const [key, value] of Object.entries(data)) {
-      if (typeof value === 'string') {
-        schemaShape[key] = Joi.string().required()
-      } else if (typeof value === 'number') {
-        schemaShape[key] = Joi.number().required()
-      } else if (typeof value === 'boolean') {
-        schemaShape[key] = Joi.boolean().required()
-      } else if (value instanceof File) {
-        schemaShape[key] = Joi.any() // Allow file uploads
-      } else {
-        schemaShape[key] = Joi.any().required() // Default case for unknown types
+      switch (data_type.toLowerCase()) {
+        case 'integer':
+        case 'numeric':
+          joiType = Joi.number().integer()
+          break
+
+        case 'text':
+        case 'varchar':
+        case 'char':
+        case 'uuid':
+          joiType = Joi.string()
+          break
+
+        case 'boolean':
+          joiType = Joi.boolean()
+          break
+
+        case 'timestamp':
+        case 'date':
+        case 'timestamp without time zone': // ✅ Handles "timestamp without time zone"
+          joiType = Joi.date()
+          break
+
+        case 'jsonb':
+        case 'json':
+          joiType = Joi.alternatives().try(Joi.object(), Joi.array()) // ✅ Supports objects & arrays
+          break
+
+        default:
+          joiType = Joi.any() // Fallback for unknown types
       }
-    }
 
-    return Joi.object(schemaShape)
+      // If column name is "id", make it optional (assuming auto-generated)
+      schemaObject[column_name] =
+        column_name === 'id' || 'image'
+          ? joiType.optional()
+          : joiType.required()
+    })
+
+    return Joi.object({
+      collectionName: Joi.string().optional(), // ✅ Added collectionName as optional
+      image: Joi.optional(),
+      ...schemaObject,
+    })
   },
 
   updateData: Joi.object({

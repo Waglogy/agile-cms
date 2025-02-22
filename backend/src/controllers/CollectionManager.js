@@ -169,64 +169,86 @@ class CollectionManager {
   } */
 
   static async insertData(req, res, next) {
-    // try {
-    /* if (!req.body.tableName || typeof req.body.tableName !== 'string') {
-        return next(new AppError(400, 'Invalid or missing table name'))
+    console.log(req.body)
+
+    try {
+      if (!req.body?.collectionName) {
+        return next(
+          new AppError(
+            400,
+            'Data insert failed',
+            'Please enter collection name'
+          )
+        )
       }
 
-      const files = req.files // Uploaded files
-      const data = req.body
-      const uploadsDir = path.resolve('../uploads') // Local storage path
+      // 🔹 Fetch collection schema dynamically
+      const collection = await queryExecutor.getCollectionByName(
+        req.body.collectionName
+      )
 
-      if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true }) // Ensure uploads directory exists
+      // 🔹 Validate request body using dynamically generated schema
+
+      const validationResult = joiValidator(
+        collectionValidation.dynamicSchema(collection),
+        req
+      )
+
+      if (!validationResult.success) {
+        console.error('Validation errors:', validationResult.errors)
+        return next(
+          new AppError(400, 'Validation failed', validationResult.errors)
+        )
       }
 
-      // Process each uploaded file
-      if (files) {
-        for (const [key, file] of Object.entries(files)) {
-          const filePath = path.resolve(uploadsDir, file[0].filename)
+      let payload = { ...req.body }
+      delete payload.collectionName
 
-          // Save file locally
-          fs.writeFileSync(filePath, file[0].buffer)
+      // 🔹 Handle image uploads (if files are provided)
 
-          // Convert file to Base64 (optional)
-          const base64String = fs.readFileSync(filePath).toString('base64')
+      console.log(req.files)
 
-          // Store file path & Base64 in data object
-          data[key] = {
-            path: `/uploads/${file[0].filename}`,
-            base64: base64String, // Store Base64 if needed
-          }
+      if (req.files?.image) {
+        try {
+          const { imageContainer } = await imageUploader(req.files)
+          payload.image = imageContainer
+        } catch (uploadError) {
+          console.error('Image upload error:', uploadError)
+          return next(
+            new AppError(500, 'Image processing failed', uploadError.message)
+          )
         }
       }
 
-      const { tableName, ...rest } = data
+      console.log('Final payload to be inserted:', payload)
 
-      console.log(data)
+      console.log(payload)
 
-      // Insert into database (modify queryExecutor accordingly)
-      // const success = await queryExecutor.insertData(tableName, rest)
-      return res.json({ success })
-    } catch (err) {
-      console.error(`Error inserting data into '${req.body.tableName}':`, err)
-      return next(
-        new AppError(
-          500,
-          `Failed to insert data into '${req.body.tableName}'`,
-          err
-        )
+      // 🔹 Insert data into the database
+      const insertResult = await queryExecutor.insertData(
+        req.body.collectionName,
+        payload
       )
-    } */
 
-    const { imageContainer } = await imageUploader(req.files)
+      if (!insertResult) {
+        return next(
+          new AppError(
+            500,
+            'Database insertion failed',
+            'Unknown error occurred'
+          )
+        )
+      }
 
-    // console.log(result)
-
-    res.status(200).json({
-      success: true,
-      imageContainer,
-    })
+      res.status(200).json({
+        success: true,
+        message: 'Data inserted successfully',
+        insertedData: payload,
+      })
+    } catch (error) {
+      console.error('Error in insertData:', error)
+      return next(new AppError(500, 'Internal Server Error', error.message))
+    }
   }
 
   static async updateData(req, res, next) {

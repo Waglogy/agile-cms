@@ -42,5 +42,8 @@ export const imageUploader = async (file) => {
     })
   )
 
+  // delete the origonal file
+  fs.unlinkSync(imagePath)
+
   return { imageContainer }
 }
