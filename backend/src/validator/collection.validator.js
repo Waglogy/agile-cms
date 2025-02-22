@@ -26,12 +26,34 @@ export const collectionValidation = {
       .required(),
   }),
 
-  insertData: Joi.object({
+  /* insertData: Joi.object({
     tableName: Joi.string()
       .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
       .required(),
     data: Joi.object().min(1).required(),
   }),
+ */
+
+  insertData: (data) => {
+    const schemaShape = {}
+
+    // Dynamically create validation rules based on input fields
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof value === 'string') {
+        schemaShape[key] = Joi.string().required()
+      } else if (typeof value === 'number') {
+        schemaShape[key] = Joi.number().required()
+      } else if (typeof value === 'boolean') {
+        schemaShape[key] = Joi.boolean().required()
+      } else if (value instanceof File) {
+        schemaShape[key] = Joi.any() // Allow file uploads
+      } else {
+        schemaShape[key] = Joi.any().required() // Default case for unknown types
+      }
+    }
+
+    return Joi.object(schemaShape)
+  },
 
   updateData: Joi.object({
     tableName: Joi.string()
