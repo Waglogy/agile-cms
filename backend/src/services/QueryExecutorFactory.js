@@ -78,6 +78,7 @@ class QueryExecutorFactory {
       'Doe'
   ); */
   }
+
   async getCollectionByName(tableName) {
     const result = await client.query('SELECT get_collection_by_name($1)', [
       tableName,
