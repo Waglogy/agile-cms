@@ -332,12 +332,12 @@ export default function PasswordInput({
 
               <div
                 onClick={() => {
-                  setShowConfirmedPassword(!showConfirmedPassword);
+                  setShowConfirmedPassword(showConfirmedPassword);
                   changeConfirmedPasswordVisibility();
                 }}
                 className="cursor-pointer flex justify-end text-gray-500 absolute right-3 top-3"
               >
-                {showConfirmedPassword ? <FiEyeOff /> : <FiEye />}
+                {!showConfirmedPassword ? <FiEyeOff /> : <FiEye />}
               </div>
             </>
           )}

@@ -41,7 +41,7 @@ function Sidebar({ setModalOpen, setModalContent, setCollection }) {
                 <h3>Collection Types</h3>
                 <Dropdown isOpen={isDropdownOpen} toggleDropdown={() => handleClick("toggleDropdown")} />
             </div>
-            {isDropdownOpen && (
+            {isDropdownOpen && data && (
                 <ul className="pl-10 mt-3">
                     {data.map((item, index) => (
                         <li key={index} className="mb-2 list-disc">

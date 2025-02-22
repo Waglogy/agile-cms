@@ -10,7 +10,8 @@ import createNewComponent from "../../../../api/super_admin/createNewComponent";
 import GetData from "../../../../api/super_admin/GetData";
 import EditButton from "../../../../reusable-components/buttons/EditButton";
 import EditArchitecture from "../../../../api/super_admin/EditArchitecture"
-
+import DeleteComponent from "../../../../api/super_admin/DeleteComponent"
+import { FiDelete } from "react-icons/fi";
 const ContentBuilder = () => {
     const [modalContent, setModalContent] = useState("");
     const [isModalOpen, setModalOpen] = useState(false);
@@ -22,7 +23,7 @@ const ContentBuilder = () => {
     const [apiData, setApiData] = useState([]);
     const [collection, setCollection] = useState([]);
     const [isAddColumnOpen, setAddColumnOpen] = useState(false);
-    
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -68,7 +69,7 @@ const ContentBuilder = () => {
             columns: columns || []
         };
         setCollection(newCollection);
-        
+
     };
 
     const handleAddColumn = async (data) => {
@@ -80,7 +81,7 @@ const ContentBuilder = () => {
                 constraints: "DEFAULT 0"
             };
 
-            
+
             await EditArchitecture(postData);
             setAddColumnOpen(false);
             window.location.reload();
@@ -105,7 +106,7 @@ const ContentBuilder = () => {
                 schema: schema
             };
 
-            
+
             await createNewComponent(postData);
             window.location.reload();
         } catch (error) {
@@ -113,26 +114,16 @@ const ContentBuilder = () => {
         }
     };
 
-    const editArchitecture = async (data) => {
+    const handleDeleteComponent = async (data) => {
         try {
-            const tableName = collection.name;
-            const oldColumnName = editingIndex[1]; // Get original name from state
-            const newColumnName = data.edit_field; // Get new name from form
-            const columnType = data.columnType; // Get type from form
-    
+            const collectionName = data
             const postData = {
-                tableName,
-                oldColumnName,
-                newColumnName,
-                columnType: columnType.toUpperCase(),
-                constraints: "DEFAULT 0"
-            };
-    
-            await EditArchitecture(postData);
-            setEditOpen(false);
-            window.location.reload();
+                collectionName
+            }
+            DeleteComponent(postData)
+            window.location.reload()
         } catch (error) {
-            console.error("Error occurred while editing:", error);
+            console.error(error)
         }
     };
 
@@ -247,44 +238,56 @@ const ContentBuilder = () => {
                     </PopUp>
                 )}
 
-                <div className="body w-full h-full">
-                    <div className="collection_header p-5">
-                        <h1 className="font-bold capitalize text-xl">{collection.name}</h1>
-                        <p className="capitalize text-l text-gray-500">Data architecture of your content</p>
-                    </div>
-                    <div className="collection_body">
-                        <div className="w-full h-full flex justify-center items-center flex-col">
-                            <table className="w-90 h-full text-center border-collapse border border-gray-400">
-                                <thead>
-                                    <tr className="border border-gray-300">
-                                        <th>Name</th>
-                                        <th>Type</th>
-                                        
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {collection.columns?.map((col, index) => (
-                                        <tr key={index} className="border border-gray-300 ">
-                                            <td >{col.column_name}</td>
-                                            <td className="capitalize">{col.data_type}</td>
-                                        
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                            
-                            <div className="pt-5">
-                            <button
-                                    type="button"
-                                    className="bg-green-500 text-white px-4 py-2 rounded"
-                                    onClick={() => setAddColumnOpen(true)}
-                                >
-                                    Add Column
-                                </button>
+                {
+                    collection.name ?
+                        (<div className="body w-full h-full">
+                            <div className="collection_header p-5">
+                                <div className="flex items-center gap-10">
+                                    <h1 className="font-bold capitalize text-xl">{collection.name}</h1>
+                                    <FiDelete onClick={() => { handleDeleteComponent(collection.name) }} />
+                                </div>
+                                <p className="capitalize text-l text-gray-500">Data architecture of your content</p>
                             </div>
+                            <div className="collection_body">
+                                <div className="w-full h-full flex justify-center items-center flex-col">
+                                    <table className="w-90 h-full text-center border-collapse border border-gray-400">
+                                        <thead>
+                                            <tr className="border border-gray-300">
+                                                <th>Name</th>
+                                                <th>Type</th>
+
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {collection.columns?.map((col, index) => (
+                                                <tr key={index} className="border border-gray-300 ">
+                                                    <td >{col.column_name}</td>
+                                                    <td className="capitalize">{col.data_type}</td>
+
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+
+                                    <div className="pt-5">
+                                        <button
+                                            type="button"
+                                            className="bg-green-500 text-white px-4 py-2 rounded"
+                                            onClick={() => setAddColumnOpen(true)}
+                                        >
+                                            Add Column
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>)
+                    :
+                    (
+                        <div className="font-bold text-xl m-auto">
+                            <h1 className="text-center">Add a Collection to view <br />or <br />Start your backend </h1>
                         </div>
-                    </div>
-                </div>
+                    )
+                }
 
                 {isAddColumnOpen && (
                     <PopUp modalContent="Add New Column">
@@ -303,9 +306,9 @@ const ContentBuilder = () => {
                                     autoComplete="off"
                                     type="text"
                                     classes="rounded-md px-3 py-2 text-sm w-full text-white"
-                                    setValue = {setValue}
+                                    setValue={setValue}
                                 />
-                                
+
                                 <div className="flex flex-col w-full">
                                     <label className="text-xs font-bold mb-2">Column Type</label>
                                     <select
