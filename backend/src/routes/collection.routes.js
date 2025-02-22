@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import CollectionManager from '../controllers/CollectionManager.js'
+import upload from '../config/multer.config.js'
 
 const collectionRouter = Router()
 
@@ -33,7 +34,16 @@ collectionRouter.post('/create', CollectionManager.createTable)
  ** }
  **
  */
-collectionRouter.post('/insert', CollectionManager.insertData)
+collectionRouter.post(
+  '/insert',
+  upload.fields([
+    {
+      name: 'image',
+      maxCount: 1,
+    },
+  ]),
+  CollectionManager.insertData
+)
 
 /*
  **
@@ -89,5 +99,23 @@ collectionRouter.post('/delete-collection', CollectionManager.deleteCollection)
 */
 
 collectionRouter.get('/', CollectionManager.getAllCollections)
+
+/*
+ ** Get a specific collection by name
+ */
+collectionRouter.get('/:tableName', CollectionManager.getCollectionByName)
+
+/*
+ ** Delete an attribute (column) from a collection
+ */
+collectionRouter.post(
+  '/attribute/delete',
+  CollectionManager.deleteAttributeFromCollection
+)
+
+/*
+ ** Get all data from a specific collection
+ */
+collectionRouter.get('/data/:tableName', CollectionManager.getCollectionData)
 
 export default collectionRouter

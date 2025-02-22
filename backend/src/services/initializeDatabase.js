@@ -521,6 +521,76 @@ $$ LANGUAGE plpgsql;
           
           `
     )
+    // get collection by name
+    await client.query(
+      `
+            CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
+            RETURNS JSON AS $$
+            DECLARE
+                result JSON;
+            BEGIN
+                SELECT json_agg(
+                            json_build_object(
+                                'column_name', column_name,
+                                'data_type', data_type
+                            )
+                    )
+                INTO result
+                FROM information_schema.columns
+                WHERE table_name = p_table_name
+                AND table_schema = 'public';
+
+                RETURN result;
+            END;
+            $$ LANGUAGE plpgsql;
+        
+        `
+    )
+
+    // delete attribute(column )from a table
+    await client.query(
+      `
+            CREATE OR REPLACE FUNCTION delete_attribute_from_collection(
+    p_table_name TEXT,
+    p_column_name TEXT
+) RETURNS BOOLEAN AS $$
+BEGIN
+    -- Check if column exists before attempting to drop
+    IF EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_name = p_table_name AND column_name = p_column_name
+    ) THEN
+        EXECUTE format('ALTER TABLE %I DROP COLUMN %I;', p_table_name, p_column_name);
+        RETURN TRUE;
+    ELSE
+        RETURN FALSE;  -- Column does not exist
+    END IF;
+EXCEPTION
+    WHEN OTHERS THEN
+        RAISE NOTICE 'Error deleting column: %', SQLERRM;
+        RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+
+        `
+    )
+
+    // get collection data
+
+    await client.query(
+      `
+CREATE OR REPLACE FUNCTION get_collection_data(p_table_name TEXT)
+RETURNS JSON AS $$
+DECLARE
+    result JSON;
+BEGIN
+    EXECUTE format('SELECT json_agg(t) FROM %I t', p_table_name) INTO result;
+    RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+        
+        `
+    )
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
