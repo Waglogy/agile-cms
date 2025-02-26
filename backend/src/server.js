@@ -1,4 +1,5 @@
 import app from './app.js'
+import process from 'process'
 import envConfig from './config/env.config.js'
 import initializeDatabase from './services/initializeDatabase.js'
 

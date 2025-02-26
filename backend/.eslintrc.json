@@ -5,19 +5,33 @@
   },
   "extends": ["eslint:recommended"],
   "parserOptions": {
-    "ecmaVersion": 12,
+    "ecmaVersion": "latest",
     "sourceType": "module"
   },
   "rules": {
-    "semi": ["error", "always"],
-    "quotes": ["error", "single"],
-    "no-unused-vars": "warn",
-    "no-console": "off"
-  },
-
-  "extends": ["eslint:recommended", "prettier"],
-  "plugins": ["prettier"],
-  "rules": {
-    "prettier/prettier": "error"
+    "semi": ["error", "never"],
+    "quotes": ["error", "double", { "avoidEscape": true }],
+    "indent": ["error", 2, { "SwitchCase": 1 }],
+    "func-style": ["error", "expression"],
+    "camelcase": ["error", { "properties": "always" }],
+    "new-cap": ["error", { "newIsCap": true, "capIsNew": false }],
+    "id-match": ["error", "^[a-z][a-zA-Z0-9]*$", { "properties": false }],
+    "no-underscore-dangle": ["error", { "allowAfterThis": false }],
+    "no-process-env": "off",
+    "eqeqeq": ["error", "always"],
+    "no-console": ["warn", { "allow": ["warn", "error"] }],
+    "no-unused-vars": ["error", { "argsIgnorePattern": "^_" }],
+    "no-var": "error",
+    "prefer-const": "error",
+    "consistent-return": "error",
+    "no-magic-numbers": [
+      "warn",
+      { "ignore": [0, 1, -1], "ignoreArrayIndexes": true, "enforceConst": true }
+    ],
+    "no-param-reassign": ["error", { "props": true }],
+    "object-shorthand": ["error", "always"],
+    "prefer-template": "error",
+    "arrow-body-style": ["error", "as-needed"],
+    "no-return-await": "error"
   }
 }

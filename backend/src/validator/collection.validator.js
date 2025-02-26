@@ -27,6 +27,8 @@ export const collectionValidation = {
   }),
 
   dynamicSchema: (collection) => {
+    console.log(collection)
+
     const schemaObject = {}
 
     collection.forEach(({ column_name, data_type }) => {
@@ -66,14 +68,14 @@ export const collectionValidation = {
 
       // If column name is "id", make it optional (assuming auto-generated)
       schemaObject[column_name] =
-        column_name === 'id' || 'image'
+        column_name === 'id' || column_name === 'image'
           ? joiType.optional()
           : joiType.required()
     })
 
     return Joi.object({
       collectionName: Joi.string().optional(), // ✅ Added collectionName as optional
-      image: Joi.optional(),
+      // image: Joi.optional(),
       ...schemaObject,
     })
   },

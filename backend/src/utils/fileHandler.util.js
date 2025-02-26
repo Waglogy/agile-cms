@@ -3,7 +3,7 @@ import fs from 'fs'
 import sharp from 'sharp'
 
 export const imageUploader = async (file) => {
-  const uploadDir = path.resolve('uploads', 'resized', Date.now().toString())
+  const uploadDir = path.resolve('uploads', 'converted', Date.now().toString())
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true })
@@ -35,8 +35,12 @@ export const imageUploader = async (file) => {
       return [
         sizeLabel,
         {
-          imagePath: filePath,
-          base64: fs.readFileSync(filePath, { encoding: 'base64' }),
+          imagePath: path.join(
+            'uploads',
+            'converted',
+            `${sizeLabel}-${filename}.webp`
+          ),
+          base64: fs.readFileSync(filePath, { encoding: 'base64url' }),
         },
       ]
     })

@@ -143,10 +143,13 @@ class CollectionManager {
       const collection = await queryExecutor.getCollectionByName(
         req.body.collectionName
       )
+
       const validationResult = joiValidator(
         collectionValidation.dynamicSchema(collection),
         req
       )
+
+      console.log(validationResult)
 
       if (!validationResult.success) {
         return next(

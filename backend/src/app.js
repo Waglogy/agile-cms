@@ -1,12 +1,12 @@
 import express from 'express'
 import apiRouter from './routes/api.routes.js'
 import cors from 'cors'
+import passport from 'passport'
 import AppError from './utils/AppError.js'
 
 const app = express()
 
 import './utils/JwtStrategy.js'
-import passport from 'passport'
 
 // middlewares
 app.use(cors())
@@ -23,6 +23,7 @@ app.use(passport.initialize())
 app.use('/api', apiRouter)
 
 //global error handler
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _) => {
   console.log(err)
 
