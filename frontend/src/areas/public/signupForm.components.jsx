@@ -62,8 +62,8 @@ const SignupForm = () => {
 
 
                     {/* form */}
-                    <section className="w-[80%] md:w-[50%] lg:w-[40%] xl:w-[30%] 2xl:w-[25%] h-[40%] p-5 rounded-md shadow-lg bg-white overflow-y-scroll">
-                        <p className="text-center text-black text-base md:text-lg lg:text-xl font-semibold mb-3"> Sign Up</p>
+                    <section className=" md:w-[50%] lg:w-[40%] xl:w-[30%] 2xl:w-[25%] p-5 rounded-lg shadow-lg bg-white ">
+                        <p className="text-center text-black text-bold md:text-lg lg:text-xl font-bold mb-3 "> SIGN UP    </p>
 
                         <form onSubmit={handleSubmit(handleSignup)}>
                             <Input

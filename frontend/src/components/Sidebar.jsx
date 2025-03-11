@@ -34,36 +34,54 @@ function Sidebar({ setModalOpen, setModalContent, setCollection }) {
     };
 
     return (
-        <div className="flex flex-col w-45 h-screen p-4 shadow-lg border-r ">
-            <h1 className="text-l font-bold">Content-Type Builder</h1>
-            <hr />
-            <div className="flex mt-5">
-                <h3>Collection Types</h3>
-                <Dropdown isOpen={isDropdownOpen} toggleDropdown={() => handleClick("toggleDropdown")} />
-            </div>
-            {isDropdownOpen && data && (
-                <ul className="pl-10 mt-3">
-                    {data.map((item, index) => (
-                        <li key={index} className="mb-2 list-disc">
-                            <button
-                                onClick={() => setCollection(item.collection_name, item.columns)}
-                                className="text-blue-600 hover:underline capitalize"
-                            >
-                                {item.collection_name}
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            )}
-            <div>
-                <button
-                    className="text-blue-600 mt-5 hover:underline"
-                    onClick={() => handleClick("togglePopUp")}
-                >
-                    Add New Collection Type
-                </button>
-            </div>
+        <div className="flex flex-col w-80 h-screen p-6 shadow-lg border-r border-gray-300 bg-white mt-20">
+    <div className=" w-full p-3 rounded-lg ">
+        <h1 className="text-l font-semibold text-black">COllECTION BULDER</h1>
         </div>
+        <div className="flex mt-3 items-center text-black  p-10 flex-col bg-blue-300 rounded-lg" >
+            <h3 className="text-l p-3 font-semibold ">Collection's</h3>
+            <Dropdown isOpen={isDropdownOpen} toggleDropdown={() => handleClick("toggleDropdown")} />
+       
+        {isDropdownOpen && data && (
+            <ul className="pl-8 mt-3 space-y-2">
+                {data.map((item, index) => (
+                    <li key={index} className="list-disc">
+                        <button
+                            onClick={() => setCollection(item.collection_name, item.columns)}
+                            className="text-blue-600 hover:underline capitalize focus:outline-none"
+                        >
+                            {item.collection_name}
+                        </button>
+                    </li>
+                ))}
+            </ul>
+        )}
+         </div>
+       <div className="mt-5 ">
+  <button
+    className="flex shadow-lg items-center gap-2 px-6 py-2 text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700 transition duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+    onClick={() => handleClick("togglePopUp")}
+  >
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 4v16m8-8H4"
+      />
+    </svg>
+    <span>New Collection </span>
+  </button>
+</div>
+
+    </div>
+    
     );
 }
 

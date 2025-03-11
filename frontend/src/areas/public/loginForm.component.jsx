@@ -77,7 +77,7 @@ const LoginForm = () => {
                     
 
                     {/* form */}
-                    <section className="w-[80%] md:w-[50%] lg:w-[40%] xl:w-[30%] 2xl:w-[25%] h-[40%] p-5 rounded-md shadow-lg bg-white ">
+                    <section className="w-[80%] md:w-[50%] lg:w-[40%] xl:w-[30%] 2xl:w-[25%] h-[40%] p-5 rounded-lg shadow-lg bg-white ">
                         <p className="text-center text-primary text-base md:text-lg lg:text-xl font-semibold mb-3"> Admin Login</p>
 
                         <form onSubmit={handleSubmit(handleLogin)}>

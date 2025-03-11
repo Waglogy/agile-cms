@@ -1,23 +1,21 @@
 import React from 'react';
 
-const PopUp = ({ show, children, modalContent}) => {
+const PopUp = ({ show, children, modalContent }) => {
+  if (!show) return null; // Prevents rendering when `show` is false
+
   return (
-    <div className="w-full h-full z-300 bg-[#ffffff33] bg-opacity-50 fixed ">
-        
-        <div className={show ? "modal display-block" : "modal display-none"}>
-            <div className=" lg:w-[60%] h-[60%] bg-black absolute bottom-50 right-50 p-3 overflow-scroll">
-                <div className="p-4 ">
-                    <h2 className="text-lg font-bold">{modalContent}</h2>
-
-                </div>
-                <hr />
-                <section className="modal-main p-5 flex justify-center items-center">
-                    {children}
-                </section>
-                
-
+    <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-30 backdrop-blur-sm">
+      <div className="lg:w-full h-full bg-white  shadow-lg p-6 relative">
+        {/* Header */}
+        <div className="p-4">
+          <h2 className="text-lg font-bold">{modalContent}</h2>
         </div>
-        </div>
+        <hr />
+        {/* Content */}
+        <section className="p-5 flex justify-center items-center">
+          {children}
+        </section>
+      </div>
     </div>
   );
 };
