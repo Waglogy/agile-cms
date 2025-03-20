@@ -54,7 +54,7 @@ const SignupForm = () => {
     return (
         <>
             <Header />
-            <section className="w-full h-[100vh] m-auto flex bg-gray-100">
+            <section className="w-full h-[100vh] m-auto flex bg-gray-100 mt-10">
 
                 <div className="flex justify-center items-center flex-col w-full">
 
