@@ -1,5 +1,5 @@
-import React from 'react';
-import { FiChevronRight, FiChevronDown } from "react-icons/fi";
+import React from 'react'
+import { FiChevronRight, FiChevronDown } from 'react-icons/fi'
 
 const Dropdown = ({ isOpen, toggleDropdown }) => {
   return (
@@ -10,7 +10,7 @@ const Dropdown = ({ isOpen, toggleDropdown }) => {
         <FiChevronRight onClick={toggleDropdown} className="cursor-pointer" />
       )}
     </div>
-  );
-};
+  )
+}
 
-export default Dropdown;
+export default Dropdown

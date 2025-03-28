@@ -3,12 +3,12 @@
 
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
-import React, { Fragment, useState, useEffect } from "react";
-import Error from "../../outputs/Error";
+import React, { Fragment, useState, useEffect } from 'react'
+import Error from '../../outputs/Error'
 
-import { FiEye, FiEyeOff } from "react-icons/fi";
-import { CiCircleInfo } from "react-icons/ci";
-import { set } from "react-hook-form";
+import { FiEye, FiEyeOff } from 'react-icons/fi'
+import { CiCircleInfo } from 'react-icons/ci'
+import { set } from 'react-hook-form'
 
 export default function PasswordInput({
   defaultName,
@@ -24,76 +24,74 @@ export default function PasswordInput({
   showInput,
   ...rest
 }) {
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmedPassword, setShowConfirmedPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmedPassword, setShowConfirmedPassword] = useState(false)
 
   const { onChange, ...props } = register(defaultName, {
     required: required,
     pattern: pattern,
-  });
+  })
 
   useEffect(() => {
-    if (rest?.defaultValue !== "") {
-      rest.setValue(defaultName, rest?.defaultValue, { shouldTouch: true });
+    if (rest?.defaultValue !== '') {
+      rest.setValue(defaultName, rest?.defaultValue, { shouldTouch: true })
     }
-  }, [rest?.defaultValue]);
+  }, [rest?.defaultValue])
 
   const numberInputOnWheelPreventChange = (e) => {
     // Prevent the input value change
-    e.target.blur();
+    e.target.blur()
 
     // Prevent the page/container scrolling
-    e.stopPropagation();
+    e.stopPropagation()
 
     // Refocus immediately, on the next tick (after the current
     // function is done)
     setTimeout(() => {
-      e.target.focus();
-    }, 0);
-  };
+      e.target.focus()
+    }, 0)
+  }
 
   const changePasswordVisibility = () => {
-    
-    var x = document.getElementById("myPasswordInput");
-    if (x.type === "password") {
-      x.type = "text";
-
+    var x = document.getElementById('myPasswordInput')
+    if (x.type === 'password') {
+      x.type = 'text'
     } else {
-      x.type = "password";
+      x.type = 'password'
     }
     // if(showPassword){
     //   x = "text";
     // } else {
     //   x = "password";
     // }
-  };
+  }
 
   const changeConfirmedPasswordVisibility = () => {
-    var y = document.getElementById("myConfirmPasswordInput");
+    var y = document.getElementById('myConfirmPasswordInput')
     if (y) {
-      if (y.type === "password") {
-        y.type = "text";
+      if (y.type === 'password') {
+        y.type = 'text'
       } else {
-        y.type = "password";
+        y.type = 'password'
       }
     }
-  };
+  }
 
   useEffect(() => {
-    let isMounted = true;
+    let isMounted = true
     if (isMounted) {
-      setShowPassword(false);
-      setShowConfirmedPassword(false);
+      setShowPassword(false)
+      setShowConfirmedPassword(false)
     }
-  }, []);
+  }, [])
 
   return (
     <Fragment>
       <div
         className={`${
           showInput === undefined || showInput === true
-            ? "flex flex-col"
-            : "hidden"
+            ? 'flex flex-col'
+            : 'hidden'
         } w-full my-2`}
       >
         <label className="flex items-center font-medium text-left text-gray-900 pl-1 pb-1 text-xs md:text-sm lg:text-base">
@@ -113,94 +111,94 @@ export default function PasswordInput({
         </label>
 
         <div className="relative z-0">
-          {name === "Password" ||
-          name === "Current Password" ||
-          name === "New Password" ? (
+          {name === 'Password' ||
+          name === 'Current Password' ||
+          name === 'New Password' ? (
             <>
               <input
                 onBlur={async (e) => {
-                  rest?.onBlur(e);
+                  rest?.onBlur(e)
                 }}
                 onChange={async (e) => {
                   // setFormErrMsg("");
-                  if (e.target.value === "") {
+                  if (e.target.value === '') {
                     if (required) {
                       setError(defaultName, {
-                        type: "required",
+                        type: 'required',
                         message: `${name} is required`,
-                      });
+                      })
                     } else {
-                      clearError(defaultName);
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(defaultName)
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                     if (onChangeInput !== null) {
-                      onChangeInput(e?.target?.value);
+                      onChangeInput(e?.target?.value)
                     }
                     // onChange(e);
                   } else if (pattern !== null) {
                     if (!pattern.test(e.target.value)) {
-                      clearError(defaultName);
-                      clearError(`${defaultName}_onChange`);
+                      clearError(defaultName)
+                      clearError(`${defaultName}_onChange`)
                       setError(defaultName, {
-                        type: "pattern",
+                        type: 'pattern',
                         message: `${name} is not valid`,
-                      });
+                      })
                     } else {
                       if (onChangeInput !== null) {
-                        clearError(defaultName);
-                        clearError(`${defaultName}_onChange`);
-                        const res = await onChangeInput(e?.target?.value);
+                        clearError(defaultName)
+                        clearError(`${defaultName}_onChange`)
+                        const res = await onChangeInput(e?.target?.value)
                         if (res) {
                           setError(`${defaultName}_onChange`, {
-                            type: "manual",
+                            type: 'manual',
                             message: `${name} is not available`,
-                          });
+                          })
                         } else {
-                          clearError(`${defaultName}_onChange`);
-                          onChange(e);
+                          clearError(`${defaultName}_onChange`)
+                          onChange(e)
                         }
                       } else {
-                        onChange(e);
+                        onChange(e)
                       }
                     }
                   } else if (onChangeInput !== null) {
-                    const res = await onChangeInput(e.target.value);
+                    const res = await onChangeInput(e.target.value)
                     if (res) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is not available`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   } else {
-                    clearError(defaultName);
-                    clearError(`${defaultName}_onChange`);
+                    clearError(defaultName)
+                    clearError(`${defaultName}_onChange`)
 
-                    onChange(e);
+                    onChange(e)
                   }
-                  if (rest?.type === "number") {
+                  if (rest?.type === 'number') {
                     if (parseInt(e.target.value) < parseInt(rest?.min)) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is less than expected`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   }
-                  if (rest?.type === "date") {
+                  if (rest?.type === 'date') {
                     if (new Date(e.target.value) > new Date(rest?.max)) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is less than expected`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   }
                 }}
@@ -209,111 +207,111 @@ export default function PasswordInput({
                 autoSave="off"
                 className={`placeholder:text-xs md:placeholder:text-sm text-xs md:text-sm ${classes} border focus:outline-none focus:ring-0 focus:border-primary ${
                   errors[defaultName]
-                    ? "border-red-700"
+                    ? 'border-red-700'
                     : errors[`${defaultName}_onChange`]
-                    ? "border-red-700"
-                    : "border-gray-400"
+                      ? 'border-red-700'
+                      : 'border-gray-400'
                 }`}
                 onWheel={numberInputOnWheelPreventChange}
               />
 
               <div
                 onClick={() => {
-                  changePasswordVisibility();
+                  changePasswordVisibility()
                 }}
                 className="cursor-pointer flex justify-end text-gray-500 absolute right-3 top-3"
               >
-                {showPassword ?  <FiEye /> : <FiEyeOff />}
+                {showPassword ? <FiEye /> : <FiEyeOff />}
               </div>
             </>
           ) : null}
 
-          {name === "Confirm Password" && (
+          {name === 'Confirm Password' && (
             <>
               <input
                 onBlur={async (e) => {
-                  rest?.onBlur(e);
+                  rest?.onBlur(e)
                 }}
                 onChange={async (e) => {
                   // setFormErrMsg("");
-                  if (e.target.value === "") {
+                  if (e.target.value === '') {
                     if (required) {
                       setError(defaultName, {
-                        type: "required",
+                        type: 'required',
                         message: `${name} is required`,
-                      });
+                      })
                     } else {
-                      clearError(defaultName);
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(defaultName)
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                     if (onChangeInput !== null) {
-                      onChangeInput(e?.target?.value);
+                      onChangeInput(e?.target?.value)
                     }
                     // onChange(e);
                   } else if (pattern !== null) {
                     if (!pattern.test(e.target.value)) {
-                      clearError(defaultName);
-                      clearError(`${defaultName}_onChange`);
+                      clearError(defaultName)
+                      clearError(`${defaultName}_onChange`)
                       setError(defaultName, {
-                        type: "pattern",
+                        type: 'pattern',
                         message: `${name} is not valid`,
-                      });
+                      })
                     } else {
                       if (onChangeInput !== null) {
-                        clearError(defaultName);
-                        clearError(`${defaultName}_onChange`);
-                        const res = await onChangeInput(e?.target?.value);
+                        clearError(defaultName)
+                        clearError(`${defaultName}_onChange`)
+                        const res = await onChangeInput(e?.target?.value)
                         if (res) {
                           setError(`${defaultName}_onChange`, {
-                            type: "manual",
+                            type: 'manual',
                             message: `${name} is not available`,
-                          });
+                          })
                         } else {
-                          clearError(`${defaultName}_onChange`);
-                          onChange(e);
+                          clearError(`${defaultName}_onChange`)
+                          onChange(e)
                         }
                       } else {
-                        onChange(e);
+                        onChange(e)
                       }
                     }
                   } else if (onChangeInput !== null) {
-                    const res = await onChangeInput(e.target.value);
+                    const res = await onChangeInput(e.target.value)
                     if (res) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is not available`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   } else {
-                    clearError(defaultName);
-                    clearError(`${defaultName}_onChange`);
+                    clearError(defaultName)
+                    clearError(`${defaultName}_onChange`)
 
-                    onChange(e);
+                    onChange(e)
                   }
-                  if (rest?.type === "number") {
+                  if (rest?.type === 'number') {
                     if (parseInt(e.target.value) < parseInt(rest?.min)) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is less than expected`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   }
-                  if (rest?.type === "date") {
+                  if (rest?.type === 'date') {
                     if (new Date(e.target.value) > new Date(rest?.max)) {
                       setError(`${defaultName}_onChange`, {
-                        type: "manual",
+                        type: 'manual',
                         message: `${name} is less than expected`,
-                      });
+                      })
                     } else {
-                      clearError(`${defaultName}_onChange`);
-                      onChange(e);
+                      clearError(`${defaultName}_onChange`)
+                      onChange(e)
                     }
                   }
                 }}
@@ -322,18 +320,18 @@ export default function PasswordInput({
                 autoSave="off"
                 className={`placeholder:text-xs md:placeholder:text-sm text-xs md:text-sm ${classes} border focus:outline-none focus:ring-0 focus:border-primary ${
                   errors[defaultName]
-                    ? "border-red-700"
+                    ? 'border-red-700'
                     : errors[`${defaultName}_onChange`]
-                    ? "border-red-700"
-                    : "border-gray-400"
+                      ? 'border-red-700'
+                      : 'border-gray-400'
                 }`}
                 onWheel={numberInputOnWheelPreventChange}
               />
 
               <div
                 onClick={() => {
-                  setShowConfirmedPassword(showConfirmedPassword);
-                  changeConfirmedPasswordVisibility();
+                  setShowConfirmedPassword(showConfirmedPassword)
+                  changeConfirmedPasswordVisibility()
                 }}
                 className="cursor-pointer flex justify-end text-gray-500 absolute right-3 top-3"
               >
@@ -343,14 +341,14 @@ export default function PasswordInput({
           )}
         </div>
 
-        {errors[defaultName] && errors[defaultName].type === "required" && (
+        {errors[defaultName] && errors[defaultName].type === 'required' && (
           <Error
             classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
             message={`${name} is required`}
           />
         )}
 
-        {errors[defaultName] && errors[defaultName].type === "pattern" && (
+        {errors[defaultName] && errors[defaultName].type === 'pattern' && (
           <Error
             classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
             message={`${name} is not valid`}
@@ -365,5 +363,5 @@ export default function PasswordInput({
         )}
       </div>
     </Fragment>
-  );
+  )
 }

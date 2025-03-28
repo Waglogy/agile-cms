@@ -3,7 +3,7 @@ import fs from 'fs'
 import sharp from 'sharp'
 
 export const imageUploader = async (file) => {
-  const uploadDir = path.resolve('uploads', 'converted', Date.now().toString())
+  const uploadDir = path.join('uploads', 'converted', Date.now().toString()) // Use path.join for a relative path
 
   if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true })
@@ -28,25 +28,21 @@ export const imageUploader = async (file) => {
     )
   )
 
-  // Read and structure the image data
+  // Construct relative paths for the image data
   const imageContainer = Object.fromEntries(
     Object.keys(sizes).map((sizeLabel) => {
-      const filePath = path.resolve(uploadDir, `${sizeLabel}-${filename}.webp`)
+      const filePath = `${uploadDir}/${sizeLabel}-${filename}.webp` // Keep this relative
       return [
         sizeLabel,
         {
-          imagePath: path.join(
-            'uploads',
-            'converted',
-            `${sizeLabel}-${filename}.webp`
-          ),
+          imagePath: `/${filePath}`, // Ensure it starts from the root `/uploads/...`
           base64: fs.readFileSync(filePath, { encoding: 'base64url' }),
         },
       ]
     })
   )
 
-  // delete the origonal file
+  // Delete the original file
   fs.unlinkSync(imagePath)
 
   return { imageContainer }

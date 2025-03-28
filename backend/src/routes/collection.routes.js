@@ -119,10 +119,7 @@ collectionRouter.get('/:tableName', getCollectionByName)
 /*
  ** Delete an attribute (column) from a collection
  */
-collectionRouter.post(
-  '/attribute/delete',
-  deleteAttributeFromCollection
-)
+collectionRouter.post('/attribute/delete', deleteAttributeFromCollection)
 
 /*
  ** Get all data from a specific collection
