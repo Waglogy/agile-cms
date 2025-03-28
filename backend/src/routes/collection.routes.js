@@ -1,5 +1,16 @@
 import { Router } from 'express'
-import CollectionManager from '../controllers/CollectionManager.js'
+import {
+  alterCollection,
+  createTable,
+  deleteAttributeFromCollection,
+  deleteCollection,
+  deleteData,
+  getAllCollections,
+  getCollectionByName,
+  getCollectionData,
+  insertData,
+  updateData,
+} from '../controllers/CollectionManager.js'
 import upload from '../config/multer.config.js'
 
 const collectionRouter = Router()
@@ -18,7 +29,7 @@ const collectionRouter = Router()
  ** }
  **
  */
-collectionRouter.post('/create', CollectionManager.createTable)
+collectionRouter.post('/create', createTable)
 
 /*
  **
@@ -42,7 +53,7 @@ collectionRouter.post(
       maxCount: 1,
     },
   ]),
-  CollectionManager.insertData
+  insertData
 )
 
 /*
@@ -60,7 +71,7 @@ collectionRouter.post(
  ** }
  **
  */
-collectionRouter.post('/update', CollectionManager.updateData)
+collectionRouter.post('/update', updateData)
 
 /*
  **
@@ -73,7 +84,7 @@ collectionRouter.post('/update', CollectionManager.updateData)
  ** }
  **
  */
-collectionRouter.post('/delete', CollectionManager.deleteData)
+collectionRouter.post('/delete', deleteData)
 
 /**
  {
@@ -84,7 +95,7 @@ collectionRouter.post('/delete', CollectionManager.deleteData)
 }
 */
 
-collectionRouter.post('/alter', CollectionManager.alterCollection)
+collectionRouter.post('/alter', alterCollection)
 
 /**
 {
@@ -92,30 +103,30 @@ collectionRouter.post('/alter', CollectionManager.alterCollection)
 }
 */
 
-collectionRouter.post('/delete-collection', CollectionManager.deleteCollection)
+collectionRouter.post('/delete-collection', deleteCollection)
 
 /**
  it is a GET query -  duhhh :D
 */
 
-collectionRouter.get('/', CollectionManager.getAllCollections)
+collectionRouter.get('/', getAllCollections)
 
 /*
  ** Get a specific collection by name
  */
-collectionRouter.get('/:tableName', CollectionManager.getCollectionByName)
+collectionRouter.get('/:tableName', getCollectionByName)
 
 /*
  ** Delete an attribute (column) from a collection
  */
 collectionRouter.post(
   '/attribute/delete',
-  CollectionManager.deleteAttributeFromCollection
+  deleteAttributeFromCollection
 )
 
 /*
  ** Get all data from a specific collection
  */
-collectionRouter.get('/data/:tableName', CollectionManager.getCollectionData)
+collectionRouter.get('/data/:tableName', getCollectionData)
 
 export default collectionRouter
