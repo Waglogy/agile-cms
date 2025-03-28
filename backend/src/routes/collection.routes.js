@@ -10,7 +10,7 @@ import {
   getCollectionData,
   insertData,
   updateData,
-} from '../controllers/CollectionManager.js'
+} from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 
 const collectionRouter = Router()
