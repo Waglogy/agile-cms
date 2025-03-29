@@ -107,16 +107,23 @@ DECLARE
     col_name TEXT;
     col_type TEXT;
     constraints TEXT;
+    is_required BOOLEAN;
 BEGIN
     -- Construct column definitions from schema
     FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
         col_name := quote_ident(column_entry.key);
         col_type := column_entry.value->>'type';
         constraints := COALESCE(column_entry.value->>'constraints', '');
+        is_required := (column_entry.value->>'required')::BOOLEAN;
 
         -- Validate supported types
         IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
             RAISE EXCEPTION 'Unsupported data type: %', col_type;
+        END IF;
+
+        -- Append NOT NULL if required
+        IF is_required THEN
+            constraints := constraints || ' NOT NULL';
         END IF;
 
         column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);

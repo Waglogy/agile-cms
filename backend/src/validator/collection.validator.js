@@ -21,6 +21,7 @@ export const collectionValidation = {
             )
             .required(),
           constraints: Joi.string().allow('').optional(),
+          required: Joi.boolean().default(false), //  Required flag validation
         })
       )
       .required(),
@@ -31,7 +32,7 @@ export const collectionValidation = {
 
     const schemaObject = {}
 
-    collection.forEach(({ column_name, data_type }) => {
+    collection.forEach(({ column_name, data_type, required }) => {
       let joiType
 
       switch (data_type.toLowerCase()) {
@@ -53,29 +54,30 @@ export const collectionValidation = {
 
         case 'timestamp':
         case 'date':
-        case 'timestamp without time zone': // ✅ Handles "timestamp without time zone"
+        case 'timestamp without time zone':
           joiType = Joi.date()
           break
 
         case 'jsonb':
         case 'json':
-          joiType = Joi.alternatives().try(Joi.object(), Joi.array()) // ✅ Supports objects & arrays
+          joiType = Joi.alternatives().try(Joi.object(), Joi.array())
           break
 
         default:
           joiType = Joi.any() // Fallback for unknown types
       }
 
-      // If column name is "id", make it optional (assuming auto-generated)
+      // If column is "id" or "image", make it optional, otherwise enforce required flag
       schemaObject[column_name] =
         column_name === 'id' || column_name === 'image'
           ? joiType.optional()
-          : joiType.required()
+          : required
+            ? joiType.required()
+            : joiType.optional()
     })
 
     return Joi.object({
-      collectionName: Joi.string().optional(), // ✅ Added collectionName as optional
-      // image: Joi.optional(),
+      collectionName: Joi.string().optional(),
       ...schemaObject,
     })
   },
@@ -114,5 +116,6 @@ export const collectionValidation = {
       )
       .required(),
     constraints: Joi.string().allow('').optional(),
+    required: Joi.boolean().default(false), // ✅ Required flag validation
   }),
 }
