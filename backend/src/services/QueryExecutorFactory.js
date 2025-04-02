@@ -145,6 +145,12 @@ class QueryExecutorFactory {
     const result = await client.query('SELECT find_user($1)', [email])
     return result.rows[0].find_user
   }
+
+  async getAllDatabases() {
+    const query = `SELECT datname FROM pg_database;`
+    const result = await client.query(query)
+    return result.rows // Extract actual database names
+  }
 }
 
 // Export a single instance
