@@ -1,6 +1,7 @@
 import pg from 'pg'
 import envConfig from '../config/env.config.js'
-import client from '../config/db.config.js'
+import app from '../app.js'
+// import client from '../config/db.config.js'
 
 const { Client } = pg
 
@@ -13,7 +14,14 @@ const adminClient = new Client({
   database: 'postgres', // Connect to the default database first
 })
 
-async function initializeDatabase() {
+async function initializeDatabase(db_name) {
+  const client = new Client({
+    host: envConfig.PG_HOST,
+    user: envConfig.PG_USER,
+    password: envConfig.PG_PASSWORD,
+    port: envConfig.PG_PORT,
+    database: String(db_name).toLowerCase(),
+  })
   try {
     await adminClient.connect()
     console.log('🚀 Connected to PostgreSQL!')
@@ -21,21 +29,17 @@ async function initializeDatabase() {
     // ✅ Ensure database exists
     const res = await adminClient.query(
       `SELECT 1 FROM pg_database WHERE datname = '${String(
-        envConfig.PG_DATABASE
+        db_name
       ).toLowerCase()}';`
     )
     if (res.rows.length === 0) {
-      console.log(
-        `⚠️ Database '${envConfig.PG_DATABASE}' not found. Creating...`
-      )
+      console.log(`⚠️ Database '${db_name}' not found. Creating...`)
       await adminClient.query(
-        `CREATE DATABASE ${String(envConfig.PG_DATABASE).toLowerCase()};`
+        `CREATE DATABASE ${String(db_name).toLowerCase()};`
       )
-      console.log(
-        `✅ Database '${envConfig.PG_DATABASE}' created successfully!`
-      )
+      console.log(`✅ Database '${db_name}' created successfully!`)
     } else {
-      console.log(`✅ Database '${envConfig.PG_DATABASE}' already exists.`)
+      console.log(`✅ Database '${db_name}' already exists.`)
     }
 
     await adminClient.end()
@@ -43,6 +47,8 @@ async function initializeDatabase() {
     // ✅ Connect to the created database
 
     await client.connect()
+
+    app.locals.client = client
 
     // ✅ Ensure settings table exists
     await client.query(`

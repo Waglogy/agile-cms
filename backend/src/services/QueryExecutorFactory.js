@@ -1,4 +1,8 @@
-import client from '../config/db.config.js'
+// import { client } from './initializeDatabase.js'
+
+import app from '../app.js'
+
+app.locals.client
 
 class QueryExecutorFactory {
   constructor() {
@@ -9,6 +13,7 @@ class QueryExecutorFactory {
   }
 
   async createCollection(tableName, schema) {
+    await client.connect()
     const result = await client.query('SELECT create_content_type($1, $2)', [
       tableName,
       schema,
