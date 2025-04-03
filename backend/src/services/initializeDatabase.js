@@ -14,8 +14,9 @@ const adminClient = new Client({
   database: 'postgres', // Connect to the default database first
 })
 
+let client
 async function initializeDatabase(db_name) {
-  const client = new Client({
+  client = new Client({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
     password: envConfig.PG_PASSWORD,
@@ -43,12 +44,13 @@ async function initializeDatabase(db_name) {
     }
 
     await adminClient.end()
+    // console.log(`this is  a:`, a)
 
     // ✅ Connect to the created database
-
     await client.connect()
+    // console.log()
 
-    app.locals.client = client
+    // app.locals.client = client
 
     // ✅ Ensure settings table exists
     await client.query(`
@@ -610,3 +612,4 @@ $$ LANGUAGE plpgsql;
 }
 
 export default initializeDatabase
+export { client }

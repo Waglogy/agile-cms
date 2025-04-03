@@ -2,8 +2,7 @@
 
 import app from '../app.js'
 
-app.locals.client
-
+import { client } from './initializeDatabase.js'
 class QueryExecutorFactory {
   constructor() {
     if (!QueryExecutorFactory.instance) {
@@ -13,7 +12,8 @@ class QueryExecutorFactory {
   }
 
   async createCollection(tableName, schema) {
-    await client.connect()
+    // await client.connect()
+    // console.log(object)
     const result = await client.query('SELECT create_content_type($1, $2)', [
       tableName,
       schema,
@@ -56,6 +56,7 @@ class QueryExecutorFactory {
   }
 
   async getAllCollections() {
+    console.log(`\n\n\n\nthis is the client:`, client, '\n\n\n\n')
     const result = await client.query('SELECT * FROM get_all_collections()')
     return result.rows[0]
   }
