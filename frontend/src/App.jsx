@@ -1,26 +1,74 @@
-import React from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import LoginForm from './areas/public/loginForm.component'
-import SignupForm from './areas/public/signupForm.components'
-import AdminPage from './areas/admin/dashboard/systemadmin/AdminPage'
-import ContentBuilder from './areas/admin/dashboard/systemadmin/ContentBuilder'
-import ContentManager from './areas/contentManager/contentManager'
-import MediaLibrary from './areas/contentManager/mediaLibrary'
+/* eslint-disable no-unused-vars */
+import { useEffect } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
+import "./App.css";
+
+import DesktopOnlyRoute from "./areas/DesktopOnlyRoute";
+
+import SelectDb from "./areas/public/pages/selectDb.component";
+
+import SystemAdminDashboard from "./areas/admin/system-admin/SystemAdminDashboard";
+import CreateTableComponent from "./areas/admin/system-admin/modules/TableCreation/createTable.component";
+import UpdateTableComponent from "./areas/admin/system-admin/modules/TableUpdate/updateTablecomponent";
+import ContentAdminDashboard from "./areas/admin/content-admin/ContentAdminDashboard";
+import AddContent from "./areas/admin/content-admin/components/AddContent";
+import Contents from "./areas/admin/content-admin/components/Contents";
+import ViewUpdate from "./areas/admin/content-admin/components/ViewUpdate";
 
 function App() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }, [pathname]);
+
   return (
-    <Router>
+    <>
       <Routes>
-        <Route path="/" element={<SignupForm />} />
-        <Route path="/login" element={<LoginForm />} />
-        {/* Admin Panel Route */}
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/admin/content-builder" element={<ContentBuilder />} />
-        <Route path="/admin/content-manager" element={<ContentManager />} />
-        <Route path="/admin/media-library" element={<MediaLibrary />} />
+        <Route exact path="/" element={<SelectDb />} />
+
+        {/* System Admin */}
+        <Route
+          exact
+          path="/system-admin/dashboard"
+          element={
+            <DesktopOnlyRoute>
+              <SystemAdminDashboard />
+            </DesktopOnlyRoute>
+          }
+        />
+        <Route
+          path="/system-admin/modules/table-creation"
+          element={<CreateTableComponent />}
+        />
+        <Route
+          path="/system-admin/modules/table-update"
+          element={
+            <DesktopOnlyRoute>
+              <UpdateTableComponent />
+            </DesktopOnlyRoute>
+          }
+        />
+
+        {/* Content Admin */}
+        <Route
+          path="/content-admin"
+          element={
+            <DesktopOnlyRoute>
+              <ContentAdminDashboard />
+            </DesktopOnlyRoute>
+          }
+        >
+          <Route path="add" element={<AddContent />} />
+          <Route path="contents" element={<Contents />} />
+          <Route path="view-update" element={<ViewUpdate />} />
+        </Route>
       </Routes>
-    </Router>
-  )
+    </>
+  );
 }
 
-export default App
+export default App;
