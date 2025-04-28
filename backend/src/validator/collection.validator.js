@@ -78,6 +78,7 @@ export const collectionValidation = {
 
     return Joi.object({
       collectionName: Joi.string().optional(),
+      multiple: Joi.boolean().optional(),
       ...schemaObject,
     })
   },

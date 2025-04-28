@@ -163,11 +163,34 @@ export async function insertData(req, res, next) {
         )
       }
     }
-
+    console.log(`\n\nthis is payload:`, payload)
     const success = await queryExecutor.insertData(
       req.body.collectionName,
       payload
     )
+    console.log(success)
+    // success.status.id
+    let image
+    if (req.body.multiple) {
+      for (image of req.files) {
+        await queryExecutor.addImage(
+          req.body.collectionName,
+          success.status.id,
+          image.path
+        )
+      }
+    }
+    // if (req.files?.image) {
+    //   try {
+    //     const { imageContainer } = await imageUploader(req.files)
+    //     payload.image = imageContainer
+    //   } catch (uploadError) {
+    //     return next(
+    //       new AppError(500, 'Image processing failed', uploadError.message)
+    //     )
+    //   }
+    // }
+
     return res.json({
       status: success,
       message: success ? 'Data inserted successfully' : 'Data insertion failed',

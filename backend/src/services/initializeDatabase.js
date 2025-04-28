@@ -183,28 +183,41 @@ $$ LANGUAGE plpgsql;
 
     //insert into content type or table
     await client.query(`
-      CREATE OR REPLACE FUNCTION insert_into_content_type(table_name TEXT, data JSONB) RETURNS BOOLEAN AS $$
-      DECLARE
-          column_names TEXT := '';
-          column_values TEXT := '';
-          column_entry RECORD;
-      BEGIN
-          FOR column_entry IN SELECT * FROM jsonb_each(data) LOOP
-              column_names := column_names || quote_ident(column_entry.key) || ', ';
-              column_values := column_values || quote_literal(column_entry.value) || ', ';
-          END LOOP;
-          column_names := TRIM(BOTH ', ' FROM column_names);
-          column_values := TRIM(BOTH ', ' FROM column_values);
-          IF column_names = '' OR column_values = '' THEN
-              RAISE EXCEPTION 'Data must contain at least one column';
-          END IF;
-          EXECUTE format('INSERT INTO %I (%s) VALUES (%s);', table_name, column_names, column_values);
-          RETURN TRUE;
-      EXCEPTION
-          WHEN OTHERS THEN
-              RETURN FALSE;
-      END;
-      $$ LANGUAGE plpgsql;
+CREATE OR REPLACE FUNCTION insert_into_content_type(table_name TEXT, data JSONB) 
+RETURNS JSONB AS $$
+DECLARE
+    column_names TEXT := '';
+    column_values TEXT := '';
+    column_entry RECORD;
+    result_row RECORD;
+    result_json JSONB;
+BEGIN
+    FOR column_entry IN SELECT * FROM jsonb_each(data) LOOP
+        column_names := column_names || quote_ident(column_entry.key) || ', ';
+        column_values := column_values || quote_literal(column_entry.value) || ', ';
+    END LOOP;
+
+    column_names := TRIM(BOTH ', ' FROM column_names);
+    column_values := TRIM(BOTH ', ' FROM column_values);
+
+    IF column_names = '' OR column_values = '' THEN
+        RAISE EXCEPTION 'Data must contain at least one column';
+    END IF;
+
+    EXECUTE format(
+        'INSERT INTO %I (%s) VALUES (%s) RETURNING *', 
+        table_name, column_names, column_values
+    ) INTO result_row;
+
+    result_json := to_jsonb(result_row);
+    RETURN result_json;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
     `)
 
     // delete data from table
@@ -605,6 +618,29 @@ END;
 $$ LANGUAGE plpgsql;
         
         `
+    )
+
+    await client.query(`
+        CREATE TABLE images (
+    id SERIAL PRIMARY KEY,
+    parent_table VARCHAR(255), -- e.g., 'posts', 'products', etc.
+    parent_id INT,             -- ID of the record in the parent table
+    url TEXT,                  -- Image URL or path
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`)
+
+    await client.query(
+      `            CREATE OR REPLACE FUNCTION add_image(
+                p_parent_table VARCHAR,
+                p_parent_id INT,
+                p_url TEXT
+            )
+            RETURNS VOID AS $$
+            BEGIN
+                INSERT INTO images (parent_table, parent_id, url)
+                VALUES (p_parent_table, p_parent_id, p_url);
+            END;
+            $$ LANGUAGE plpgsql;`
     )
   } catch (error) {
     console.error('❌ Database initialization failed:', error)

@@ -22,6 +22,9 @@ class QueryExecutorFactory {
   }
 
   async insertData(tableName, data) {
+    // Object.values(data).forEach((val) => {
+    //   if(typeof val )
+    // })
     const result = await client.query(
       'SELECT insert_into_content_type($1, $2)',
       [tableName, data]
@@ -156,6 +159,20 @@ class QueryExecutorFactory {
     const query = `SELECT datname FROM pg_database;`
     const result = await client.query(query)
     return result.rows // Extract actual database names
+  }
+
+  async addImage(parentTable, parentId, url) {
+    try {
+      const query = 'SELECT add_image($1, $2, $3)';
+      const values = [parentTable, parentId, url];
+
+      await client.query(query, values);
+
+      console.log('Image inserted successfully!');
+    } catch (error) {
+      console.error('Error inserting image:', error);
+      throw error;
+    } 
   }
 }
 
