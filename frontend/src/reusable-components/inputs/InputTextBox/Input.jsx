@@ -1,7 +1,7 @@
 /* eslint-disable no-unused-vars */
 /* eslint-disable react/prop-types */
-import React, { Fragment, useEffect } from 'react'
-import Error from '../../outputs/Error'
+import React, { Fragment, useEffect } from "react";
+import Error from "../../outputs/Error";
 
 export default function Input({
   defaultName,
@@ -17,52 +17,42 @@ export default function Input({
   showInput,
   ...rest
 }) {
-  const handleChange = async (e) => {
-    const value = e.target.value
-
-    // In ALL places where you use onChangeInput:
-    if (onChangeInput) {
-      // From: await onChangeInput(e?.target?.value)
-      await onChangeInput(value) // ✅ Pass value directly
-    }
-  }
-
   const { onChange, ...props } = register(defaultName, {
     required: required,
     pattern: pattern,
-  })
+  });
 
   useEffect(() => {
-    if (rest?.defaultValue !== '') {
-      rest.setValue(defaultName, rest?.defaultValue, { shouldTouch: true })
+    if (rest?.defaultValue !== "") {
+      rest.setValue(defaultName, rest?.defaultValue, { shouldTouch: true });
     }
-  }, [rest?.defaultValue])
+  }, [rest?.defaultValue]);
 
   const numberInputOnWheelPreventChange = (e) => {
     // Prevent the input value change
-    e.target.blur()
+    e.target.blur();
 
     // Prevent the page/container scrolling
-    e.stopPropagation()
+    e.stopPropagation();
 
     // Refocus immediately, on the next tick (after the current
     // function is done)
     setTimeout(() => {
-      e.target.focus()
-    }, 0)
-  }
+      e.target.focus();
+    }, 0);
+  };
 
   return (
     <Fragment>
       <div
         className={`${
           showInput === undefined || showInput === true
-            ? 'flex flex-col'
-            : 'hidden'
+            ? "flex flex-col"
+            : "hidden"
         } w-full my-2 justify-start items-start`}
       >
-        <label className="flex items-center font-medium text-left text-gray-500 pl-1 pb-1 text-xs md:text-sm lg:text-base">
-          {name === 'Username' ? (
+        <label className="flex items-center font-medium text-left text-gray-900 pl-1 pb-1 text-xs md:text-sm lg:text-base">
+          {name === "Username" ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 mr-3 text-primary"
@@ -75,7 +65,7 @@ export default function Input({
                 clipRule="evenodd"
               />
             </svg>
-          ) : name === 'Password' ? (
+          ) : name === "Password" ? (
             <svg
               xmlns="http://www.w3.org/2000/svg"
               className="h-5 w-5 mr-3 text-primary"
@@ -89,34 +79,116 @@ export default function Input({
               />
             </svg>
           ) : (
-            ''
+            ""
           )}
           {name} {required && <span className="text-red-700">*</span>}
         </label>
         <input
           onBlur={async (e) => {
-            rest?.onBlur(e)
+            rest?.onBlur(e);
           }}
-          onChange={handleChange}
+          onChange={async (e) => {
+            // setFormErrMsg("");
+            if (e.target.value === "") {
+              if (required) {
+                setError(defaultName, {
+                  type: "required",
+                  message: `${name} is required`,
+                });
+              } else {
+                clearError(defaultName);
+                clearError(`${defaultName}_onChange`);
+                onChange(e);
+              }
+              if (onChangeInput !== null) {
+                onChangeInput(e?.target?.value);
+              }
+              // onChange(e);
+            } else if (pattern !== null) {
+              if (!pattern.test(e.target.value)) {
+                clearError(defaultName);
+                clearError(`${defaultName}_onChange`);
+                setError(defaultName, {
+                  type: "pattern",
+                  message: `${name} is not valid`,
+                });
+              } else {
+                if (onChangeInput !== null) {
+                  clearError(defaultName);
+                  clearError(`${defaultName}_onChange`);
+                  const res = await onChangeInput(e?.target?.value);
+                  if (res) {
+                    setError(`${defaultName}_onChange`, {
+                      type: "manual",
+                      message: `${name} is not available`,
+                    });
+                  } else {
+                    clearError(`${defaultName}_onChange`);
+                    onChange(e);
+                  }
+                } else {
+                  onChange(e);
+                }
+              }
+            } else if (onChangeInput !== null) {
+              const res = await onChangeInput(e.target.value);
+              if (res) {
+                setError(`${defaultName}_onChange`, {
+                  type: "manual",
+                  message: `${name} is not available`,
+                });
+              } else {
+                clearError(`${defaultName}_onChange`);
+                onChange(e);
+              }
+            } else {
+              clearError(defaultName);
+              clearError(`${defaultName}_onChange`);
+
+              onChange(e);
+            }
+            if (rest?.type === "number") {
+              if (parseInt(e.target.value) < parseInt(rest?.min)) {
+                setError(`${defaultName}_onChange`, {
+                  type: "manual",
+                  message: `${name} is less than expected`,
+                });
+              } else {
+                clearError(`${defaultName}_onChange`);
+                onChange(e);
+              }
+            }
+            if (rest?.type === "date") {
+              if (new Date(e.target.value) > new Date(rest?.max)) {
+                setError(`${defaultName}_onChange`, {
+                  type: "manual",
+                  message: `${name} is less than expected`,
+                });
+              } else {
+                clearError(`${defaultName}_onChange`);
+                onChange(e);
+              }
+            }
+          }}
           {...props}
           {...rest}
           autoSave="off"
           className={`placeholder:text-xs md:placeholder:text-sm text-xs md:text-sm ${classes} border focus:outline-none focus:ring-0 focus:border-secondary ${
             errors[defaultName]
-              ? 'border-red-700'
+              ? "border-red-700"
               : errors[`${defaultName}_onChange`]
-                ? 'border-red-700'
-                : 'border-gray-400'
+              ? "border-red-700"
+              : "border-gray-400"
           }`}
           onWheel={numberInputOnWheelPreventChange}
         />
-        {errors[defaultName] && errors[defaultName].type === 'required' && (
+        {errors[defaultName] && errors[defaultName].type === "required" && (
           <Error
             classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
             message={`${name} is required`}
           />
         )}
-        {errors[defaultName] && errors[defaultName].type === 'pattern' && (
+        {errors[defaultName] && errors[defaultName].type === "pattern" && (
           <Error
             classes="flex flex-row gap-1 justify-start items-center max-w-sm w-full mt-1"
             message={`${name} is not valid`}
@@ -130,5 +202,5 @@ export default function Input({
         )}
       </div>
     </Fragment>
-  )
+  );
 }
