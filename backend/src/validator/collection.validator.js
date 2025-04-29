@@ -28,8 +28,6 @@ export const collectionValidation = {
   }),
 
   dynamicSchema: (collection) => {
-    console.log(collection)
-
     const schemaObject = {}
 
     collection.forEach(({ column_name, data_type, required }) => {

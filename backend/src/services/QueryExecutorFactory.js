@@ -161,18 +161,18 @@ class QueryExecutorFactory {
     return result.rows // Extract actual database names
   }
 
-  async addImage(parentTable, parentId, url) {
+  async addImage({ parentTable, parentId, url }) {
     try {
-      const query = 'SELECT add_image($1, $2, $3)';
-      const values = [parentTable, parentId, url];
+      const query = 'SELECT add_image($1, $2, $3)'
+      const values = [parentTable, parentId, url]
 
-      await client.query(query, values);
+      await client.query(query, values)
 
-      console.log('Image inserted successfully!');
+      console.log('Image inserted successfully!')
     } catch (error) {
-      console.error('Error inserting image:', error);
-      throw error;
-    } 
+      console.error('Error inserting image:', error)
+      throw error
+    }
   }
 }
 
