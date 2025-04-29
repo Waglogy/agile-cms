@@ -18,6 +18,7 @@
     "dotenv": "^16.4.7",
     "moment": "^2.30.1",
     "postcss": "^8.4.49",
+    "quill": "^2.0.3",
     "react": "^18.3.1",
     "react-bootstrap": "^2.10.9",
     "react-dom": "^18.3.1",
