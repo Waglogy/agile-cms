@@ -621,27 +621,28 @@ $$ LANGUAGE plpgsql;
     )
 
     await client.query(`
-        CREATE TABLE images (
-    id SERIAL PRIMARY KEY,
-    parent_table VARCHAR(255), -- e.g., 'posts', 'products', etc.
-    parent_id INT,             -- ID of the record in the parent table
-    url TEXT,                  -- Image URL or path
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);`)
+        CREATE TABLE IF NOT EXISTS images (
+  id           SERIAL PRIMARY KEY,
+  parent_table TEXT,           -- no more 255-char cap
+  parent_id    INT,
+  url          JSONB,
+  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+      `)
 
-    await client.query(
-      `            CREATE OR REPLACE FUNCTION add_image(
-                p_parent_table VARCHAR,
-                p_parent_id INT,
-                p_url TEXT
-            )
-            RETURNS VOID AS $$
-            BEGIN
-                INSERT INTO images (parent_table, parent_id, url)
-                VALUES (p_parent_table, p_parent_id, p_url);
-            END;
-            $$ LANGUAGE plpgsql;`
-    )
+    await client.query(`
+        CREATE OR REPLACE FUNCTION add_image(
+  p_parent_table TEXT,     -- TEXT now
+  p_parent_id    INT,
+  p_url          JSONB     -- JSONB for array/object or single URL
+)
+RETURNS VOID AS $$
+BEGIN
+  INSERT INTO images (parent_table, parent_id, url)
+    VALUES (p_parent_table, p_parent_id, p_url);
+END;
+$$ LANGUAGE plpgsql;
+      `)
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
