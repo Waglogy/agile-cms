@@ -26,7 +26,7 @@ class QueryExecutorFactory {
     //   if(typeof val )
     // })
     const result = await client.query(
-      'SELECT insert_into_content_type($1, $2)',
+      'SELECT agile_cms.insert_into_content_type($1, $2)',
       [tableName, data]
     )
     return result.rows[0].insert_into_content_type
@@ -59,7 +59,6 @@ class QueryExecutorFactory {
   }
 
   async getAllCollections() {
-    console.log(`\n\n\n\nthis is the client:`, client, '\n\n\n\n')
     const result = await client.query('SELECT * FROM get_all_collections()')
     return result.rows[0]
   }
@@ -173,6 +172,24 @@ class QueryExecutorFactory {
       console.error('Error inserting image:', error)
       throw error
     }
+  }
+
+  async getColumnMetadata(tableName, columnName) {
+    const sql = `
+      SELECT col_description(
+        $1::regclass,
+        attnum
+      ) AS meta
+      FROM pg_attribute
+      WHERE
+        attrelid = $1::regclass
+        AND attname = $2
+        AND attnum > 0
+        AND NOT attisdropped
+    `
+
+    const { rows } = await client.query(sql, [tableName, columnName])
+    return rows[0]?.meta // e.g. 'is_multiple=true' or null
   }
 }
 

@@ -108,82 +108,40 @@ async function initializeDatabase(db_name) {
 
     // ✅ Create PostgreSQL Functions
 
-    // create dynamic tables
-    await client.query(`
-      CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
-DECLARE
-    column_definitions TEXT := '';
-    column_entry RECORD;
-    col_name TEXT;
-    col_type TEXT;
-    constraints TEXT;
-    is_required BOOLEAN;
-BEGIN
-    -- Construct column definitions from schema
-    FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
-        col_name := quote_ident(column_entry.key);
-        col_type := column_entry.value->>'type';
-        constraints := COALESCE(column_entry.value->>'constraints', '');
-        is_required := (column_entry.value->>'required')::BOOLEAN;
-
-        -- Validate supported types
-        IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-            RAISE EXCEPTION 'Unsupported data type: %', col_type;
-        END IF;
-
-        -- Append NOT NULL if required
-        IF is_required THEN
-            constraints := constraints || ' NOT NULL';
-        END IF;
-
-        column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
-    END LOOP;
-
-    -- Remove trailing comma
-    column_definitions := TRIM(BOTH ', ' FROM column_definitions);
-    IF column_definitions = '' THEN
-        RAISE EXCEPTION 'Schema must contain at least one column';
-    END IF;
-
-    -- Execute dynamic SQL to create table
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
-
-    RETURN TRUE; -- Table created successfully
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating table: %', SQLERRM;
-        RETURN FALSE;
-END;
-$$ LANGUAGE plpgsql;
-`)
-
-    // alter dynamic table or collection
-    await client.query(`
-        CREATE OR REPLACE FUNCTION create_content_type(
-  tbl_name TEXT,
-  schema   JSONB
+    // create dynamic collection or tables
+    await client.query(`CREATE OR REPLACE FUNCTION create_content_type(
+  tbl_name   TEXT,
+  schema_def JSONB
 ) RETURNS TEXT AS $$
 DECLARE
-  fld JSONB;
-  col_name TEXT;
-  col_type TEXT;
-  is_mult  BOOLEAN;
+  col_defs    TEXT;
+  col_name    TEXT;
+  column_def  JSONB;    -- renamed from "def"
+  is_mult     BOOLEAN;
 BEGIN
-  -- 1) build and run your CREATE TABLE
+  -- 1) Build the comma-separated list of "col_name col_type"
+  SELECT
+    string_agg(
+      format('%I %s', js.key, js.value->>'type'),
+      ', '
+    )
+  INTO col_defs
+  FROM jsonb_each(schema_def) AS js(key, value);
+
+  -- 2) Create the table
   EXECUTE format(
     'CREATE TABLE IF NOT EXISTS %I (%s)',
     tbl_name,
-    string_agg(
-      format('%I %s', fld->>'name', fld->>'type'),
-      ', '
-    )
-  )
-  FROM jsonb_array_elements(schema) AS fld;
+    col_defs
+  );
 
-  -- 2) loop & COMMENT each column with its is_multiple flag
-  FOR fld IN SELECT * FROM jsonb_array_elements(schema) LOOP
-    col_name := fld->>'name';
-    is_mult  := (fld->>'is_multiple')::BOOLEAN;
+  -- 3) Loop to COMMENT on each column’s is_multiple flag
+  FOR col_name, column_def IN
+    SELECT js.key, js.value
+    FROM jsonb_each(schema_def) AS js(key, value)
+  LOOP
+    is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
+
     EXECUTE format(
       'COMMENT ON COLUMN %I.%I IS %L',
       tbl_name,
@@ -198,42 +156,84 @@ $$ LANGUAGE plpgsql;
 
 `)
 
-    //insert into content type or table
+    // alter dynamic table or collection
     await client.query(`
-CREATE OR REPLACE FUNCTION insert_into_content_type(table_name TEXT, data JSONB) 
-RETURNS JSONB AS $$
-DECLARE
-    column_names TEXT := '';
-    column_values TEXT := '';
-    column_entry RECORD;
-    result_row RECORD;
-    result_json JSONB;
+        CREATE OR REPLACE FUNCTION alter_content_type(
+    table_name TEXT,
+    column_name TEXT,
+    column_type TEXT,
+    constraints TEXT DEFAULT ''
+) RETURNS BOOLEAN AS $$
 BEGIN
-    FOR column_entry IN SELECT * FROM jsonb_each(data) LOOP
-        column_names := column_names || quote_ident(column_entry.key) || ', ';
-        column_values := column_values || quote_literal(column_entry.value) || ', ';
-    END LOOP;
-
-    column_names := TRIM(BOTH ', ' FROM column_names);
-    column_values := TRIM(BOTH ', ' FROM column_values);
-
-    IF column_names = '' OR column_values = '' THEN
-        RAISE EXCEPTION 'Data must contain at least one column';
+    -- Validate supported types
+    IF column_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
+        RAISE EXCEPTION 'Unsupported data type: %', column_type;
     END IF;
 
-    EXECUTE format(
-        'INSERT INTO %I (%s) VALUES (%s) RETURNING *', 
-        table_name, column_names, column_values
-    ) INTO result_row;
+    -- Execute dynamic SQL to alter the table and add new column
+    EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s %s;', table_name, column_name, column_type, constraints);
 
-    result_json := to_jsonb(result_row);
-    RETURN result_json;
-
+    RETURN TRUE; -- Column added successfully
 EXCEPTION
     WHEN OTHERS THEN
-        RETURN NULL;
+        RAISE NOTICE 'Error adding column: %', SQLERRM;
+        RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
+`)
+
+    //insert into content type or table
+    await client.query(`
+CREATE OR REPLACE FUNCTION agile_cms.insert_into_content_type(
+  p_table_name TEXT,
+  p_data       JSONB
+) RETURNS JSONB AS $$
+DECLARE
+  v_cols     TEXT := '';
+  v_vals     TEXT := '';
+  col_name   TEXT;
+  col_val    JSONB;
+  v_result   JSONB;
+BEGIN
+  -- 1) Build comma-separated lists of identifiers and their literal values
+  FOR col_name, col_val IN
+    SELECT key, value
+      FROM jsonb_each(p_data)
+  LOOP
+    v_cols := v_cols || quote_ident(col_name) || ', ';
+    v_vals := v_vals
+      || quote_literal(col_val::text)
+      || CASE
+           WHEN ( SELECT data_type = 'jsonb'
+                    FROM information_schema.columns
+                   WHERE table_name  = p_table_name
+                     AND column_name = col_name
+                   LIMIT 1
+                )
+           THEN '::jsonb'
+           ELSE ''
+         END
+      || ', ';
+  END LOOP;
+
+  -- 2) Trim the trailing commas
+  v_cols := rtrim(v_cols, ', ');
+  v_vals := rtrim(v_vals, ', ');
+
+  IF v_cols = '' THEN
+    RAISE EXCEPTION 'Data must contain at least one column';
+  END IF;
+
+  -- 3) Insert and return the new row as JSONB
+  EXECUTE format(
+    'INSERT INTO %I AS t (%s) VALUES (%s) RETURNING row_to_json(t)::jsonb',
+    p_table_name, v_cols, v_vals
+  ) INTO v_result;
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql;
+
 
     `)
 
@@ -521,35 +521,41 @@ $$ LANGUAGE plpgsql;
     $$ LANGUAGE plpgsql;`
     )
 
+    // get all collections
     await client.query(`
-        CREATE OR REPLACE FUNCTION get_all_collections()
-        RETURNS JSON AS $$
-        DECLARE
-            result JSON;
-        BEGIN
-            SELECT json_agg(table_data) INTO result
-            FROM (
-                SELECT
-                    table_name AS collection_name,
-                    (SELECT json_agg(
-                                json_build_object(
-                                    'column_name', column_name,
-                                    'data_type', data_type
-                                )
-                            )
-                    FROM information_schema.columns c
-                    WHERE c.table_name = t.table_name
-                    AND c.table_schema = 'public'
-                    ) AS columns
-                FROM information_schema.tables t
-                WHERE t.table_schema = 'public'
-                ORDER BY t.table_name
-            ) AS table_data;
+       CREATE OR REPLACE FUNCTION get_all_collections()
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_agg(coll_obj ORDER BY coll_obj->>'collection_name')  
+  INTO result
+  FROM (
+    SELECT json_build_object(
+      'collection_name', t.table_name,
+      'columns', (
+        SELECT json_agg(
+                 json_build_object(
+                   'column_name', c.column_name,
+                   'data_type',   c.data_type
+                 )
+                 ORDER BY c.ordinal_position
+               )
+        FROM information_schema.columns c
+        WHERE c.table_schema = 'public'
+          AND c.table_name  = t.table_name
+      )
+    ) AS coll_obj
+    FROM information_schema.tables t
+    WHERE t.table_schema = 'public'
+  ) sub;
 
-            RETURN result;
-        END;
-        $$ LANGUAGE plpgsql;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
       `)
+
     await client.query(
       `
               CREATE OR REPLACE FUNCTION get_all_users()  
