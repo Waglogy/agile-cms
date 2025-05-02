@@ -1,78 +1,80 @@
-import React, { useState, useEffect } from 'react';
-import axios from "../../../../api/axios"; // Import axios for direct API calls
-import ReactQuill from 'react-quill'; // Import ReactQuill for rich text editing
-import 'react-quill/dist/quill.snow.css'; // Import Quill CSS
+import React, { useState, useEffect } from 'react'
+import axios from '../../../../api/axios'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 
 const ViewUpdate = () => {
-  const [collections, setCollections] = useState([]);
-  const [selectedCollection, setSelectedCollection] = useState('');
-  const [collectionData, setCollectionData] = useState([]);
-  const [editData, setEditData] = useState(null);
-  const [editorStates, setEditorStates] = useState({}); // Track editor states
+  const [collections, setCollections] = useState([])
+  const [selectedCollection, setSelectedCollection] = useState('')
+  const [collectionData, setCollectionData] = useState([])
+  const [editData, setEditData] = useState(null)
+  const [editorStates, setEditorStates] = useState({})
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await axios.get("http://localhost:3000/api/collection");
-        setCollections(response.data.data.get_all_collections);
+        const response = await axios.get('http://localhost:3000/api/collection')
+        setCollections(response.data.data.get_all_collections)
       } catch (error) {
-        console.error("Error fetching collections:", error);
+        console.error('Error fetching collections:', error)
       }
-    };
-    fetchData();
-  }, []);
+    }
+    fetchData()
+  }, [])
 
   const handleCollectionSelect = async (collectionName) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/collection/data/${collectionName}`);
-      setCollectionData(response.data.data);
-      setSelectedCollection(collectionName);
+      const response = await axios.get(
+        `http://localhost:3000/api/collection/data/${collectionName}`
+      )
+      setCollectionData(response.data.data)
+      setSelectedCollection(collectionName)
     } catch (error) {
-      console.error("Error fetching collection data:", error);
+      console.error('Error fetching collection data:', error)
     }
-  };
+  }
 
   const handleEdit = (record) => {
-    setEditData(record);
-    const initialEditorStates = {};
-    Object.keys(record).forEach(key => {
-      initialEditorStates[key] = false; // Default to normal text input
-    });
-    setEditorStates(initialEditorStates);
-  };
+    setEditData(record)
+    const initialEditorStates = {}
+    Object.keys(record).forEach((key) => {
+      initialEditorStates[key] = false
+    })
+    setEditorStates(initialEditorStates)
+  }
 
   const handleUpdate = async (e) => {
-    e.preventDefault();
+    e.preventDefault()
     try {
       const postData = {
         tableName: selectedCollection,
         id: editData.id,
-        updateData: { ...editData }
-      };
-      await axios.post("http://localhost:3000/api/collection/update", postData);
-      alert('Content updated successfully!');
-      setEditData(null);
-      handleCollectionSelect(selectedCollection);
+        updateData: { ...editData },
+      }
+      await axios.post('http://localhost:3000/api/collection/update', postData)
+      alert('Content updated successfully!')
+      setEditData(null)
+      handleCollectionSelect(selectedCollection)
     } catch (err) {
-      console.error("Failed to update content:", err);
-      alert('Failed to update content');
+      console.error('Failed to update content:', err)
+      alert('Failed to update content')
     }
-  };
+  }
 
   const handleDelete = async (id) => {
     try {
       const postData = {
         tableName: selectedCollection,
-        id: id
-      };
-      await axios.post("http://localhost:3000/api/collection/delete", postData);
-      alert('Content deleted successfully!');
-      handleCollectionSelect(selectedCollection);
+        id: id,
+      }
+      await axios.post('http://localhost:3000/api/collection/delete', postData)
+      alert('Content deleted successfully!')
+      handleCollectionSelect(selectedCollection)
     } catch (err) {
-      console.error("Failed to delete content:", err);
-      alert('Failed to delete content');
+      console.error('Failed to delete content:', err)
+      alert('Failed to delete content')
     }
-  };
+  }
 
   return (
     <div className="p-4">
@@ -92,52 +94,83 @@ const ViewUpdate = () => {
           ))}
         </select>
       </div>
-      {selectedCollection && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                {Object.keys(collectionData[0] || {}).map((key) => (
-                  <th key={key} className="px-4 py-2 border">
-                    {key}
-                  </th>
-                ))}
-                <th className="px-4 py-2 border">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {collectionData.map((row, index) => (
-                <tr key={index}>
-                  {Object.values(row).map((value, i) => (
-                    <td key={i} className="px-4 py-2 border">
-                      {typeof value === 'string' && value.includes('<') ? (
-                        <div dangerouslySetInnerHTML={{ __html: value }} />
-                      ) : (
-                        value
-                      )}
-                    </td>
-                  ))}
 
-                  <td className="px-4 py-2 border">
-                    <button
-                      onClick={() => handleEdit(row)}
-                      className="bg-blue-500 text-white px-2 py-1 rounded"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(row.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded ml-2"
-                    >
-                      Delete
-                    </button>
-                  </td>
+      {selectedCollection &&
+        Array.isArray(collectionData) &&
+        collectionData.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full bg-white">
+              <thead>
+                <tr>
+                  {Object.keys(collectionData[0]).map((key) => (
+                    <th key={key} className="px-4 py-2 border">
+                      {key}
+                    </th>
+                  ))}
+                  <th className="px-4 py-2 border">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody>
+                {collectionData.map((row, index) => (
+                  <tr key={index}>
+                    {Object.entries(row).map(([key, value], i) => {
+                      let renderedValue
+
+                      if (typeof value === 'string' && value.includes('<')) {
+                        renderedValue = (
+                          <div dangerouslySetInnerHTML={{ __html: value }} />
+                        )
+                      } else if (
+                        typeof value === 'object' &&
+                        value !== null &&
+                        (value.thumb || value.medium || value.large)
+                      ) {
+                        renderedValue = (
+                          <img
+                            src={value.thumb || value.medium || value.large}
+                            alt="media"
+                            className="h-12 w-auto object-contain"
+                          />
+                        )
+                      } else if (typeof value === 'object' && value !== null) {
+                        renderedValue = (
+                          <pre className="text-xs whitespace-pre-wrap">
+                            {JSON.stringify(value, null, 2)}
+                          </pre>
+                        )
+                      } else {
+                        renderedValue =
+                          value !== undefined && value !== null ? value : 'N/A'
+                      }
+
+                      return (
+                        <td key={i} className="px-4 py-2 border">
+                          {renderedValue}
+                        </td>
+                      )
+                    })}
+
+                    <td className="px-4 py-2 border">
+                      <button
+                        onClick={() => handleEdit(row)}
+                        className="bg-blue-500 text-white px-2 py-1 rounded"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(row.id)}
+                        className="bg-red-500 text-white px-2 py-1 rounded ml-2"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
       {editData && (
         <div className="mt-4 p-4 bg-gray-100 rounded">
           <h2 className="text-lg font-bold mb-4">Edit Content</h2>
@@ -167,7 +200,10 @@ const ViewUpdate = () => {
                 <button
                   type="button"
                   onClick={() =>
-                    setEditorStates((prev) => ({ ...prev, [key]: !prev[key] }))
+                    setEditorStates((prev) => ({
+                      ...prev,
+                      [key]: !prev[key],
+                    }))
                   }
                   className="text-sm mt-2 text-blue-500 hover:text-blue-700"
                 >
@@ -188,6 +224,6 @@ const ViewUpdate = () => {
       )}
     </div>
   )
-};
+}
 
-export default ViewUpdate;
+export default ViewUpdate
