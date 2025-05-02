@@ -109,17 +109,19 @@ async function initializeDatabase(db_name) {
     // ✅ Create PostgreSQL Functions
 
     // create dynamic collection or tables
-    await client.query(`CREATE OR REPLACE FUNCTION create_content_type(
+    await client.query(`
+        
+        CREATE OR REPLACE FUNCTION create_content_type(
   tbl_name   TEXT,
   schema_def JSONB
 ) RETURNS TEXT AS $$
 DECLARE
   col_defs    TEXT;
   col_name    TEXT;
-  column_def  JSONB;    -- renamed from "def"
+  column_def  JSONB;
   is_mult     BOOLEAN;
 BEGIN
-  -- 1) Build the comma-separated list of "col_name col_type"
+  -- 1) Build the comma-separated list of user-defined "col_name col_type"
   SELECT
     string_agg(
       format('%I %s', js.key, js.value->>'type'),
@@ -128,14 +130,20 @@ BEGIN
   INTO col_defs
   FROM jsonb_each(schema_def) AS js(key, value);
 
-  -- 2) Create the table
+  -- 2) Create the table with an auto-incrementing id PK + your columns
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS %I (%s)',
+    'CREATE TABLE IF NOT EXISTS %I (
+       id     SERIAL PRIMARY KEY
+       %s
+     )',
     tbl_name,
-    col_defs
+    CASE
+      WHEN col_defs <> '' THEN ', ' || col_defs
+      ELSE ''
+    END
   );
 
-  -- 3) Loop to COMMENT on each column’s is_multiple flag
+  -- 3) Loop to COMMENT on each user-defined column’s is_multiple flag
   FOR col_name, column_def IN
     SELECT js.key, js.value
     FROM jsonb_each(schema_def) AS js(key, value)
@@ -153,6 +161,7 @@ BEGIN
   RETURN 'created';
 END;
 $$ LANGUAGE plpgsql;
+
 
 `)
 
@@ -183,8 +192,7 @@ $$ LANGUAGE plpgsql;
 `)
 
     //insert into content type or table
-    await client.query(`
-CREATE OR REPLACE FUNCTION agile_cms.insert_into_content_type(
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.insert_into_content_type(
   p_table_name TEXT,
   p_data       JSONB
 ) RETURNS JSONB AS $$
@@ -195,7 +203,7 @@ DECLARE
   col_val    JSONB;
   v_result   JSONB;
 BEGIN
-  -- 1) Build comma-separated lists of identifiers and their literal values
+  -- 1) Build comma-separated lists of the JSONB keys and their literal values
   FOR col_name, col_val IN
     SELECT key, value
       FROM jsonb_each(p_data)
@@ -204,19 +212,20 @@ BEGIN
     v_vals := v_vals
       || quote_literal(col_val::text)
       || CASE
-           WHEN ( SELECT data_type = 'jsonb'
-                    FROM information_schema.columns
-                   WHERE table_name  = p_table_name
-                     AND column_name = col_name
-                   LIMIT 1
-                )
+           WHEN (
+             SELECT data_type = 'jsonb'
+               FROM information_schema.columns
+              WHERE table_name  = p_table_name
+                AND column_name = col_name
+              LIMIT 1
+           )
            THEN '::jsonb'
            ELSE ''
          END
       || ', ';
   END LOOP;
 
-  -- 2) Trim the trailing commas
+  -- 2) Trim trailing commas
   v_cols := rtrim(v_cols, ', ');
   v_vals := rtrim(v_vals, ', ');
 
@@ -224,11 +233,15 @@ BEGIN
     RAISE EXCEPTION 'Data must contain at least one column';
   END IF;
 
-  -- 3) Insert and return the new row as JSONB
+  -- 3) Insert and RETURN the *entire* row of t as JSONB (including id)
   EXECUTE format(
-    'INSERT INTO %I AS t (%s) VALUES (%s) RETURNING row_to_json(t)::jsonb',
-    p_table_name, v_cols, v_vals
-  ) INTO v_result;
+    'INSERT INTO %I AS t (%s) VALUES (%s)
+       RETURNING to_jsonb(t)',
+    p_table_name,
+    v_cols,
+    v_vals
+  )
+    INTO v_result;
 
   RETURN v_result;
 END;
@@ -575,25 +588,29 @@ $$ LANGUAGE plpgsql STABLE;
     // get collection by name
     await client.query(
       `
-            CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
-            RETURNS JSON AS $$
-            DECLARE
-                result JSON;
-            BEGIN
-                SELECT json_agg(
-                            json_build_object(
-                                'column_name', column_name,
-                                'data_type', data_type
-                            )
-                    )
-                INTO result
-                FROM information_schema.columns
-                WHERE table_name = p_table_name
-                AND table_schema = 'public';
+         CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
+  RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT COALESCE(
+           json_agg(
+             json_build_object(
+               'column_name', column_name,
+               'data_type',   data_type
+             )
+           ),
+           '[]'::json
+         )
+    INTO result
+    FROM information_schema.columns
+   WHERE lower(table_name)  = lower(p_table_name)
+     AND table_schema       = 'public';  -- or change to your schema
 
-                RETURN result;
-            END;
-            $$ LANGUAGE plpgsql;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
         
         `
     )

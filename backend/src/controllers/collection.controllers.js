@@ -125,6 +125,7 @@ export async function getCollectionData(req, res, next) {
 }
 
 // Insert new data into a collection
+// Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
     const { collectionName, ...body } = req.body
@@ -134,8 +135,12 @@ export async function insertData(req, res, next) {
       )
     }
 
+    console.log(collectionName)
+
     // 1) make sure the collection exists
-    const collection = await queryExecutor.getCollectionByName(collectionName)
+    const collection = await queryExecutor.getCollectionByName(
+      String(collectionName).toString()
+    )
     if (!collection) {
       return next(
         new AppError(
@@ -148,20 +153,16 @@ export async function insertData(req, res, next) {
 
     // 2) fetch your metadata comments
     const meta = await queryExecutor.getTableMetadata(collectionName)
+
+    console.log(meta)
+
     // suppose your image field is named "avatar"
     const rawComment = meta['avatar'] // e.g. "is_multiple=true"
-    const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 'true'
+    const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 't'
 
-    // 3) validate the body against your dynamic Joi schema
-    const validation = joiValidator(
-      collectionValidation.dynamicSchema(collection),
-      req
-    )
-    if (!validation.success) {
-      return next(new AppError(400, 'Validation failed', validation.errors))
-    }
+    console.log('ALLOW_MULTIPLE', ALLOW_MULTIPLE)
 
-    // 4) insert the row
+    // 3) insert the row
     const payload = { ...body }
     const insertResult = await queryExecutor.insertData(collectionName, payload)
     if (!insertResult) {
@@ -171,31 +172,36 @@ export async function insertData(req, res, next) {
     }
     const newRecordId = insertResult.id
 
-    // 5) handle uploaded files
-    const rawImages = req.files?.image
-    const images = rawImages
-      ? Array.isArray(rawImages)
-        ? rawImages
-        : [rawImages]
-      : []
+    console.log(insertResult)
 
-    // 6) if multiple allowed and we got more than one…
-    if (ALLOW_MULTIPLE && images.length > 1) {
-      const uploadResults = await imageUploader(req.files)
-      for (let i = 0; i < images.length; i++) {
+    const rawFiles = req.files?.image || []
+    const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
+
+    // now call the uploader with that array:
+    const uploadResults = files.length ? await imageUploader(files) : []
+
+    // 5) process uploads (returns an array of image‐container objects)
+    // const uploadResults = files.length ? await imageUploader(files) : []
+
+    console.log(uploadResults)
+
+    // 6) multiple images → gallery table
+    if (ALLOW_MULTIPLE && uploadResults.length > 1) {
+      for (const container of uploadResults) {
         await queryExecutor.addImage({
           parentTable: collectionName,
           parentId: newRecordId,
-          url: uploadResults[i].imageContainer,
+          url: container, // container is your JSONB object
         })
       }
     }
-    // 7) single‐file fallback
-    else if (images.length === 1) {
-      const { imageContainer } = await imageUploader({ image: images[0] })
-      await queryExecutor.updateData(collectionName, newRecordId, {
-        avatar: imageContainer,
-      })
+    // 7) single‐file → JSONB column
+    else if (uploadResults.length === 1) {
+      await queryExecutor.updateData(
+        collectionName,
+        newRecordId,
+        { avatar: uploadResults[0] } // first (and only) container
+      )
     }
 
     // 8) respond

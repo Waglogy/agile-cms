@@ -55,35 +55,4 @@ apiRouter.get('/list-databases', async (req, res) => {
   }
 })
 
-apiRouter.get('/laro', async (req, res) => {
-  async function getTableMetadata(tableName) {
-    // This will return one row per column, with its raw comment (e.g. "is_multiple=true")
-    const sql = `
-      SELECT
-        a.attname AS column_name,
-        col_description(a.attrelid, a.attnum) AS meta
-      FROM pg_attribute a
-      WHERE
-        a.attrelid = $1::regclass
-        AND a.attnum > 0
-        AND NOT a.attisdropped
-    `
-
-    const { rows } = await client.query(sql, [tableName])
-
-    // Build a JS object: { column_name: meta, … }
-    return rows.reduce((acc, { column_name, meta }) => {
-      acc[column_name] = meta
-      return acc
-    }, {})
-  }
-
-  const allMeta = await getTableMetadata('putty')
-
-  res.status(200).json({
-    message: 'Laro chus muzi',
-    data: allMeta,
-  })
-})
-
 export default apiRouter

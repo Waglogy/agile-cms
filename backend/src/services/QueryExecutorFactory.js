@@ -26,9 +26,12 @@ class QueryExecutorFactory {
     //   if(typeof val )
     // })
     const result = await client.query(
-      'SELECT agile_cms.insert_into_content_type($1, $2)',
+      'SELECT insert_into_content_type($1, $2)',
       [tableName, data]
     )
+
+    console.log(result)
+
     return result.rows[0].insert_into_content_type
   }
 
@@ -88,9 +91,13 @@ class QueryExecutorFactory {
   }
 
   async getCollectionByName(tableName) {
-    const result = await client.query('SELECT get_collection_by_name($1)', [
-      tableName,
-    ])
+    const result = await client.query(
+      'SELECT agile_cms.get_collection_by_name($1)',
+      [tableName]
+    )
+
+    console.log(result)
+
     return result.rows[0].get_collection_by_name
   }
 
@@ -190,6 +197,28 @@ class QueryExecutorFactory {
 
     const { rows } = await client.query(sql, [tableName, columnName])
     return rows[0]?.meta // e.g. 'is_multiple=true' or null
+  }
+
+  async getTableMetadata(tableName) {
+    // This will return one row per column, with its raw comment (e.g. "is_multiple=true")
+    const sql = `
+      SELECT
+        a.attname AS column_name,
+        col_description(a.attrelid, a.attnum) AS meta
+      FROM pg_attribute a
+      WHERE
+        a.attrelid = $1::regclass
+        AND a.attnum > 0
+        AND NOT a.attisdropped
+    `
+
+    const { rows } = await client.query(sql, [tableName])
+
+    // Build a JS object: { column_name: meta, … }
+    return rows.reduce((acc, { column_name, meta }) => {
+      acc[column_name] = meta
+      return acc
+    }, {})
   }
 }
 
