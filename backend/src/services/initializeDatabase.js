@@ -7,79 +7,78 @@ const { Client } = pg
 
 // Connect to PostgreSQL (without specifying database)
 const adminClient = new Client({
-    host: envConfig.PG_HOST,
-    user: envConfig.PG_USER,
-    password: envConfig.PG_PASSWORD,
-    port: envConfig.PG_PORT,
-    database: 'postgres', // Connect to the default database first
+  host: envConfig.PG_HOST,
+  user: envConfig.PG_USER,
+  password: envConfig.PG_PASSWORD,
+  port: envConfig.PG_PORT,
+  database: 'postgres', // Connect to the default database first
 })
 
 let client
 async function initializeDatabase(db_name) {
-    client = new Client({
-        host: envConfig.PG_HOST,
-        user: envConfig.PG_USER,
-        password: envConfig.PG_PASSWORD,
-        port: envConfig.PG_PORT,
-        database: String(db_name).toLowerCase(),
-    })
-    try {
-        await adminClient.connect()
-        console.log('🚀 Connected to PostgreSQL!')
+  client = new Client({
+    host: envConfig.PG_HOST,
+    user: envConfig.PG_USER,
+    password: envConfig.PG_PASSWORD,
+    port: envConfig.PG_PORT,
+    database: String(db_name).toLowerCase(),
+  })
+  try {
+    await adminClient.connect()
+    console.log('🚀 Connected to PostgreSQL!')
 
-        // ✅ Ensure database exists
-        const res = await adminClient.query(
-            `SELECT 1 FROM pg_database WHERE datname = '${String(
-                db_name
-            ).toLowerCase()}';`
-        )
-        if (res.rows.length === 0) {
-            console.log(`⚠️ Database '${db_name}' not found. Creating...`)
-            await adminClient.query(
-                `CREATE DATABASE ${String(db_name).toLowerCase()};`
-            )
-            console.log(`✅ Database '${db_name}' created successfully!`)
-        } else {
-            console.log(`✅ Database '${db_name}' already exists.`)
-        }
+    // ✅ Ensure database exists
+    const res = await adminClient.query(
+      `SELECT 1 FROM pg_database WHERE datname = '${String(
+        db_name
+      ).toLowerCase()}';`
+    )
+    if (res.rows.length === 0) {
+      console.log(`⚠️ Database '${db_name}' not found. Creating...`)
+      await adminClient.query(
+        `CREATE DATABASE ${String(db_name).toLowerCase()};`
+      )
+      console.log(`✅ Database '${db_name}' created successfully!`)
+    } else {
+      console.log(`✅ Database '${db_name}' already exists.`)
+    }
 
-        
-        await adminClient.end()
-        // console.log(`this is  a:`, a)
-        
-        // ✅ Connect to the created database
-        await client.connect()
-        // console.log()
-        await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`);
-        await client.query(`SET search_path TO agile_cms;`);
+    await adminClient.end()
+    // console.log(`this is  a:`, a)
 
-        // app.locals.client = client
+    // ✅ Connect to the created database
+    await client.connect()
+    // console.log()
+    await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
+    await client.query(`SET search_path TO agile_cms;`)
 
-        // ✅ Ensure settings table exists
-        await client.query(`
+    // app.locals.client = client
+
+    // ✅ Ensure settings table exists
+    await client.query(`
       CREATE TABLE IF NOT EXISTS settings (
           key TEXT PRIMARY KEY,
           value TEXT NOT NULL
       );
     `)
 
-        // ✅ Check if initialization is already done
-        const initCheck = await client.query(
-            "SELECT value FROM settings WHERE key = 'initialized';"
-        )
-        if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
-            console.log('✅ Database is already initialized. Skipping setup.')
-            // await client.end()
-            return
-        }
+    // ✅ Check if initialization is already done
+    const initCheck = await client.query(
+      "SELECT value FROM settings WHERE key = 'initialized';"
+    )
+    if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
+      console.log('✅ Database is already initialized. Skipping setup.')
+      // await client.end()
+      return
+    }
 
-        console.log('🚀 Running database initialization...')
+    console.log('🚀 Running database initialization...')
 
-        // ✅ Enable pgcrypto extension
-        await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`)
+    // ✅ Enable pgcrypto extension
+    await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`)
 
-        // ✅ Create Tables
-        await client.query(`
+    // ✅ Create Tables
+    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
           id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
           first_name TEXT NOT NULL,
@@ -105,12 +104,12 @@ async function initializeDatabase(db_name) {
       
     `)
 
-        console.log('✅ Tables created successfully!')
+    console.log('✅ Tables created successfully!')
 
-        // ✅ Create PostgreSQL Functions
+    // ✅ Create PostgreSQL Functions
 
-        // create dynamic collection or tables
-        await client.query(`
+    // create dynamic tables
+    await client.query(`
       CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
 DECLARE
     column_definitions TEXT := '';
@@ -158,34 +157,49 @@ END;
 $$ LANGUAGE plpgsql;
 `)
 
-        // alter dynamic table or collection
-        await client.query(`
-        CREATE OR REPLACE FUNCTION alter_content_type(
-    table_name TEXT,
-    column_name TEXT,
-    column_type TEXT,
-    constraints TEXT DEFAULT ''
-) RETURNS BOOLEAN AS $$
+    // alter dynamic table or collection
+    await client.query(`
+        CREATE OR REPLACE FUNCTION create_content_type(
+  tbl_name TEXT,
+  schema   JSONB
+) RETURNS TEXT AS $$
+DECLARE
+  fld JSONB;
+  col_name TEXT;
+  col_type TEXT;
+  is_mult  BOOLEAN;
 BEGIN
-    -- Validate supported types
-    IF column_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-        RAISE EXCEPTION 'Unsupported data type: %', column_type;
-    END IF;
+  -- 1) build and run your CREATE TABLE
+  EXECUTE format(
+    'CREATE TABLE IF NOT EXISTS %I (%s)',
+    tbl_name,
+    string_agg(
+      format('%I %s', fld->>'name', fld->>'type'),
+      ', '
+    )
+  )
+  FROM jsonb_array_elements(schema) AS fld;
 
-    -- Execute dynamic SQL to alter the table and add new column
-    EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s %s;', table_name, column_name, column_type, constraints);
+  -- 2) loop & COMMENT each column with its is_multiple flag
+  FOR fld IN SELECT * FROM jsonb_array_elements(schema) LOOP
+    col_name := fld->>'name';
+    is_mult  := (fld->>'is_multiple')::BOOLEAN;
+    EXECUTE format(
+      'COMMENT ON COLUMN %I.%I IS %L',
+      tbl_name,
+      col_name,
+      format('is_multiple=%s', is_mult)
+    );
+  END LOOP;
 
-    RETURN TRUE; -- Column added successfully
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'Error adding column: %', SQLERRM;
-        RETURN FALSE;
+  RETURN 'created';
 END;
 $$ LANGUAGE plpgsql;
+
 `)
 
-        //insert into content type or table
-        await client.query(`
+    //insert into content type or table
+    await client.query(`
 CREATE OR REPLACE FUNCTION insert_into_content_type(table_name TEXT, data JSONB) 
 RETURNS JSONB AS $$
 DECLARE
@@ -223,8 +237,8 @@ $$ LANGUAGE plpgsql;
 
     `)
 
-        // delete data from table
-        await client.query(`
+    // delete data from table
+    await client.query(`
       CREATE OR REPLACE FUNCTION delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
       DECLARE
           row_count INT;
@@ -237,8 +251,8 @@ $$ LANGUAGE plpgsql;
       $$ LANGUAGE plpgsql;
     `)
 
-        // update content type data
-        await client.query(`
+    // update content type data
+    await client.query(`
       CREATE OR REPLACE FUNCTION update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
       DECLARE
           update_pairs TEXT := '';
@@ -258,9 +272,9 @@ $$ LANGUAGE plpgsql;
       $$ LANGUAGE plpgsql;
     `)
 
-        // delete table
+    // delete table
 
-        await client.query(`
+    await client.query(`
       CREATE OR REPLACE FUNCTION delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
 BEGIN
     -- Prevent deletion of critical system tables
@@ -281,8 +295,8 @@ $$ LANGUAGE plpgsql;
 
       `)
 
-        // register super user function
-        await client.query(`
+    // register super user function
+    await client.query(`
       CREATE OR REPLACE FUNCTION register_super_admin(
         p_firstname TEXT,
         p_lastname TEXT,
@@ -324,8 +338,8 @@ END;
 $$ LANGUAGE plpgsql;
 `)
 
-        // register normal user or content user
-        await client.query(`CREATE OR REPLACE FUNCTION register_user(
+    // register normal user or content user
+    await client.query(`CREATE OR REPLACE FUNCTION register_user(
     p_email TEXT,
     p_password TEXT,
     p_role TEXT
@@ -361,9 +375,9 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql;`)
 
-        // assign role to exixting user
+    // assign role to exixting user
 
-        await client.query(`CREATE OR REPLACE FUNCTION assign_role_to_user(
+    await client.query(`CREATE OR REPLACE FUNCTION assign_role_to_user(
     p_email TEXT,
     p_role TEXT
 ) RETURNS BOOLEAN AS $$
@@ -393,8 +407,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`)
 
-        // cleck user role
-        await client.query(`CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
+    // cleck user role
+    await client.query(`CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
 RETURNS TABLE(role_name TEXT) AS $$
 BEGIN
     RETURN QUERY
@@ -406,8 +420,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;`)
 
-        // authenticate user
-        await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
+    // authenticate user
+    await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
     p_email TEXT,
     p_password TEXT
 ) RETURNS JSON AS $$
@@ -445,8 +459,8 @@ END;
 $$ LANGUAGE plpgsql;
 `)
 
-        // find user to check in the db for login
-        await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
+    // find user to check in the db for login
+    await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
 RETURNS BOOLEAN AS $$
 DECLARE
     user_exists BOOLEAN;
@@ -463,23 +477,23 @@ END;
 $$ LANGUAGE plpgsql;
 `)
 
-        console.log('✅ Functions created successfully!')
+    console.log('✅ Functions created successfully!')
 
-        // ✅ Insert default roles, permissions, and Super Admin
-        await client.query(`
+    // ✅ Insert default roles, permissions, and Super Admin
+    await client.query(`
       INSERT INTO roles (name) VALUES ('Super Admin'), ('Content Admin') ON CONFLICT (name) DO NOTHING;
     `)
 
-        console.log('🚀 Database initialized successfully!')
+    console.log('🚀 Database initialized successfully!')
 
-        // ✅ Mark initialization as completed
-        await client.query(
-            `INSERT INTO settings (key, value) VALUES ('initialized', 'true') ON CONFLICT (key) DO NOTHING;`
-        )
+    // ✅ Mark initialization as completed
+    await client.query(
+      `INSERT INTO settings (key, value) VALUES ('initialized', 'true') ON CONFLICT (key) DO NOTHING;`
+    )
 
-        // delet collection
-        await client.query(
-            `CREATE OR REPLACE FUNCTION delete_collection(p_table_name TEXT)
+    // delet collection
+    await client.query(
+      `CREATE OR REPLACE FUNCTION delete_collection(p_table_name TEXT)
     RETURNS TABLE(success BOOLEAN, message TEXT) AS $$
     DECLARE
         table_exists BOOLEAN;
@@ -505,9 +519,9 @@ $$ LANGUAGE plpgsql;
             RETURN QUERY SELECT FALSE, format('Error deleting table "%s": %s', p_table_name, SQLERRM);
     END;
     $$ LANGUAGE plpgsql;`
-        )
+    )
 
-        await client.query(`
+    await client.query(`
         CREATE OR REPLACE FUNCTION get_all_collections()
         RETURNS JSON AS $$
         DECLARE
@@ -536,8 +550,8 @@ $$ LANGUAGE plpgsql;
         END;
         $$ LANGUAGE plpgsql;
       `)
-        await client.query(
-            `
+    await client.query(
+      `
               CREATE OR REPLACE FUNCTION get_all_users()  
               RETURNS TABLE(id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT) AS $$  
               BEGIN  
@@ -551,10 +565,10 @@ $$ LANGUAGE plpgsql;
               $$ LANGUAGE plpgsql;
           
           `
-        )
-        // get collection by name
-        await client.query(
-            `
+    )
+    // get collection by name
+    await client.query(
+      `
             CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
             RETURNS JSON AS $$
             DECLARE
@@ -576,11 +590,11 @@ $$ LANGUAGE plpgsql;
             $$ LANGUAGE plpgsql;
         
         `
-        )
+    )
 
-        // delete attribute(column )from a table
-        await client.query(
-            `
+    // delete attribute(column )from a table
+    await client.query(
+      `
             CREATE OR REPLACE FUNCTION delete_attribute_from_collection(
     p_table_name TEXT,
     p_column_name TEXT
@@ -604,12 +618,12 @@ END;
 $$ LANGUAGE plpgsql;
 
         `
-        )
+    )
 
-        // get collection data
+    // get collection data
 
-        await client.query(
-            `
+    await client.query(
+      `
 CREATE OR REPLACE FUNCTION get_collection_data(p_table_name TEXT)
 RETURNS JSON AS $$
 DECLARE
@@ -621,9 +635,9 @@ END;
 $$ LANGUAGE plpgsql;
         
         `
-        )
+    )
 
-        await client.query(`
+    await client.query(`
         CREATE TABLE IF NOT EXISTS images (
   id           SERIAL PRIMARY KEY,
   parent_table TEXT,           -- no more 255-char cap
@@ -633,7 +647,7 @@ $$ LANGUAGE plpgsql;
 );
       `)
 
-        await client.query(`
+    await client.query(`
         CREATE OR REPLACE FUNCTION add_image(
   p_parent_table TEXT,     -- TEXT now
   p_parent_id    INT,
@@ -646,9 +660,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
       `)
-    } catch (error) {
-        console.error('❌ Database initialization failed:', error)
-    }
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error)
+  }
 }
 
 export default initializeDatabase
