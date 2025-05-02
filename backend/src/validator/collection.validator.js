@@ -21,6 +21,7 @@ export const collectionValidation = {
             )
             .required(),
           constraints: Joi.string().allow('').optional(),
+          is_multiple: Joi.boolean().optional(),
           required: Joi.boolean().default(false), //  Required flag validation
         })
       )

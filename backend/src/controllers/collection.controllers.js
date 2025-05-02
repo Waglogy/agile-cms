@@ -125,19 +125,22 @@ export async function getCollectionData(req, res, next) {
 }
 
 // Insert new data into a collection
+// Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
-    // 1) fetch collection‐level settings from DB
     const { collectionName, ...body } = req.body
-
-    const MULTIPLE = true
-
     if (!collectionName) {
       return next(
         new AppError(400, 'Data insert failed', 'Please enter collection name')
       )
     }
-    const collection = await queryExecutor.getCollectionByName(collectionName)
+
+    console.log(collectionName)
+
+    // 1) make sure the collection exists
+    const collection = await queryExecutor.getCollectionByName(
+      String(collectionName).toString()
+    )
     if (!collection) {
       return next(
         new AppError(
@@ -148,103 +151,64 @@ export async function insertData(req, res, next) {
       )
     }
 
-    // 2) validate against collection‐specific schema
-    const validationResult = joiValidator(
-      collectionValidation.dynamicSchema(collection),
-      req
-    )
-    if (!validationResult.success) {
-      return next(
-        new AppError(400, 'Validation failed', validationResult.errors)
-      )
-    }
+    // 2) fetch your metadata comments
+    const meta = await queryExecutor.getTableMetadata(collectionName)
 
-    // 3) build payload (drop collectionName and MULTIPLE flag)
+    console.log(meta)
+
+    // suppose your image field is named "avatar"
+    const rawComment = meta['avatar'] // e.g. "is_multiple=true"
+    const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 't'
+
+    console.log('ALLOW_MULTIPLE', ALLOW_MULTIPLE)
+
+    // 3) insert the row
     const payload = { ...body }
-
-    // 4) insert the main record and get its new ID
     const insertResult = await queryExecutor.insertData(collectionName, payload)
     if (!insertResult) {
-      return res.status(500).json({
-        status: false,
-        message: 'Data insertion failed',
-      })
+      return res
+        .status(500)
+        .json({ status: false, message: 'Data insertion failed' })
     }
-    // assume insertResult contains the new record's ID:
-
-    console.log('INSERT_RESULT', insertResult)
-
     const newRecordId = insertResult.id
 
-    // 5) figure out uploaded files
-    // multer might give you either `req.files.image` (single) or an array
-    const rawImages = req.files?.image
-    const images = Array.isArray(rawImages)
-      ? rawImages
-      : rawImages
-        ? [rawImages]
-        : []
+    console.log(insertResult)
 
-    console.log(images)
+    const rawFiles = req.files?.image || []
+    const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
 
-    // 6) if this collection allows multiple images AND we actually got >1 file
-    if (MULTIPLE && images.length > 0) {
-      try {
-        // upload them all in parallel
-        const uploadResults = await imageUploader(req.files)
+    // now call the uploader with that array:
+    const uploadResults = files.length ? await imageUploader(files) : []
 
-        console.log(uploadResults)
+    // 5) process uploads (returns an array of image‐container objects)
+    // const uploadResults = files.length ? await imageUploader(files) : []
 
-        // flatten out all URLs (assuming each result.imageContainer is an array or string)
-        // const allUrls = uploadResults.flatMap((r) => r.imageContainer)
+    console.log(uploadResults)
 
-        // insert into your image‐gallery table
-        for (let i = 0; i < images.length; i++) {
-          await queryExecutor.addImage({
-            parentTable: collectionName,
-            parentId: newRecordId,
-            // urls: uploadResults,
-            url: 'https://example.com',
-          })
-        }
-      } catch (uploadError) {
-        return next(
-          new AppError(
-            500,
-            'Image gallery processing failed',
-            uploadError.message
-          )
-        )
+    // 6) multiple images → gallery table
+    if (ALLOW_MULTIPLE && uploadResults.length > 1) {
+      for (const container of uploadResults) {
+        await queryExecutor.addImage({
+          parentTable: collectionName,
+          parentId: newRecordId,
+          url: container, // container is your JSONB object
+        })
       }
     }
-
-    // 7) otherwise, if there’s exactly one image, fall back to the old behavior
-    else if (images.length === 1) {
-      try {
-        const { imageContainer } = await imageUploader({ image: images[0] })
-        // update the main record with its single `image` field
-        await queryExecutor.updateData(collectionName, newRecordId, {
-          image: imageContainer,
-        })
-      } catch (uploadError) {
-        return next(
-          new AppError(
-            500,
-            'Single image processing failed',
-            uploadError.message
-          )
-        )
-      }
+    // 7) single‐file → JSONB column
+    else if (uploadResults.length === 1) {
+      await queryExecutor.updateData(
+        collectionName,
+        newRecordId,
+        { avatar: uploadResults[0] } // first (and only) container
+      )
     }
 
     // 8) respond
     return res.json({
       status: true,
       message: 'Data inserted successfully',
-      data: {
-        id: newRecordId,
-        ...payload,
-      },
+      data: { id: newRecordId, ...payload },
     })
   } catch (error) {
     console.error(error)

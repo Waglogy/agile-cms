@@ -3,7 +3,7 @@ import authRouter from './auth.routes.js'
 import collectionRouter from './collection.routes.js'
 // import authenticateUser from '../middlewares/auth.middleware.js'
 // import queryExecutor from '../services/QueryExecutorFactory.js'
-import initializeDatabase from '../services/initializeDatabase.js'
+import initializeDatabase, { client } from '../services/initializeDatabase.js'
 import pg from 'pg'
 import envConfig from '../config/env.config.js'
 

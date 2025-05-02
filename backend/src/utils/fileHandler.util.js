@@ -2,48 +2,47 @@ import path from 'path'
 import fs from 'fs'
 import sharp from 'sharp'
 
-export const imageUploader = async (file) => {
-  const uploadDir = path.join('uploads', 'converted', Date.now().toString()) // Use path.join for a relative path
+/**
+ * @param {Array<{ path: string, filename: string }>} files
+ * @returns {Promise<Array<object>>} an array of image‐container JSONs
+ */
+export const imageUploader = async (files) => {
+  // 1) ensure upload directory
+  const uploadDir = path.join('uploads', 'converted', Date.now().toString())
+  fs.mkdirSync(uploadDir, { recursive: true })
 
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true })
-  }
+  // 2) define your sizes
+  const sizes = { large: 1200, medium: 800, thumb: 300 }
 
-  const [{ path: imagePath, filename }] = file.image
+  // 3) process each file in parallel
+  const containers = await Promise.all(
+    files.map(async ({ path: src, filename }) => {
+      // resize each variant
+      await Promise.all(
+        Object.entries(sizes).map(([label, width]) =>
+          sharp(src)
+            .resize(width)
+            .toFormat('webp')
+            .toFile(path.join(uploadDir, `${label}-${filename}.webp`))
+        )
+      )
 
-  // Define sizes and their corresponding labels
-  const sizes = {
-    large: 1200,
-    medium: 800,
-    thumb: 300,
-  }
+      // remove the original upload
+      fs.unlinkSync(src)
 
-  // Generate resized images in parallel
-  await Promise.all(
-    Object.entries(sizes).map(([sizeLabel, width]) =>
-      sharp(imagePath)
-        .resize(width)
-        .toFormat('webp')
-        .toFile(`${uploadDir}/${sizeLabel}-${filename}.webp`)
-    )
-  )
-
-  // Construct relative paths for the image data
-  const imageContainer = Object.fromEntries(
-    Object.keys(sizes).map((sizeLabel) => {
-      const filePath = `${uploadDir}/${sizeLabel}-${filename}.webp` // Keep this relative
-      return [
-        sizeLabel,
-        {
-          imagePath: `/${filePath}`, // Ensure it starts from the root `/uploads/...`
-          base64: fs.readFileSync(filePath, { encoding: 'base64url' }),
-        },
-      ]
+      // build and return the JSON‐friendly container
+      return Object.fromEntries(
+        Object.keys(sizes).map((label) => {
+          const filePath = `/uploads/converted/${path.basename(uploadDir)}/${label}-${filename}.webp`
+          const base64 = fs.readFileSync(
+            path.join(uploadDir, `${label}-${filename}.webp`),
+            { encoding: 'base64url' }
+          )
+          return [label, { imagePath: filePath, base64 }]
+        })
+      )
     })
   )
 
-  // Delete the original file
-  fs.unlinkSync(imagePath)
-
-  return { imageContainer }
+  return containers
 }

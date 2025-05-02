@@ -110,56 +110,64 @@ async function initializeDatabase(db_name) {
 
     // create dynamic collection or tables
     await client.query(`
-      CREATE OR REPLACE FUNCTION  agile_cms.create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
+        
+        CREATE OR REPLACE FUNCTION create_content_type(
+  tbl_name   TEXT,
+  schema_def JSONB
+) RETURNS TEXT AS $$
 DECLARE
-    column_definitions TEXT := '';
-    column_entry RECORD;
-    col_name TEXT;
-    col_type TEXT;
-    constraints TEXT;
-    is_required BOOLEAN;
+  col_defs    TEXT;
+  col_name    TEXT;
+  column_def  JSONB;
+  is_mult     BOOLEAN;
 BEGIN
-    -- Construct column definitions from schema
-    FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
-        col_name := quote_ident(column_entry.key);
-        col_type := column_entry.value->>'type';
-        constraints := COALESCE(column_entry.value->>'constraints', '');
-        is_required := (column_entry.value->>'required')::BOOLEAN;
+  -- 1) Build the comma-separated list of user-defined "col_name col_type"
+  SELECT
+    string_agg(
+      format('%I %s', js.key, js.value->>'type'),
+      ', '
+    )
+  INTO col_defs
+  FROM jsonb_each(schema_def) AS js(key, value);
 
-        -- Validate supported types
-        IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-            RAISE EXCEPTION 'Unsupported data type: %', col_type;
-        END IF;
+  -- 2) Create the table with an auto-incrementing id PK + your columns
+  EXECUTE format(
+    'CREATE TABLE IF NOT EXISTS %I (
+       id     SERIAL PRIMARY KEY
+       %s
+     )',
+    tbl_name,
+    CASE
+      WHEN col_defs <> '' THEN ', ' || col_defs
+      ELSE ''
+    END
+  );
 
-        -- Append NOT NULL if required
-        IF is_required THEN
-            constraints := constraints || ' NOT NULL';
-        END IF;
+  -- 3) Loop to COMMENT on each user-defined column’s is_multiple flag
+  FOR col_name, column_def IN
+    SELECT js.key, js.value
+    FROM jsonb_each(schema_def) AS js(key, value)
+  LOOP
+    is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
 
-        column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
-    END LOOP;
+    EXECUTE format(
+      'COMMENT ON COLUMN %I.%I IS %L',
+      tbl_name,
+      col_name,
+      format('is_multiple=%s', is_mult)
+    );
+  END LOOP;
 
-    -- Remove trailing comma
-    column_definitions := TRIM(BOTH ', ' FROM column_definitions);
-    IF column_definitions = '' THEN
-        RAISE EXCEPTION 'Schema must contain at least one column';
-    END IF;
-
-    -- Execute dynamic SQL to create table
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
-
-    RETURN TRUE; -- Table created successfully
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating table: %', SQLERRM;
-        RETURN FALSE;
+  RETURN 'created';
 END;
 $$ LANGUAGE plpgsql;
+
+
 `)
 
     // alter dynamic table or collection
     await client.query(`
-        CREATE OR REPLACE FUNCTION  agile_cms.alter_content_type(
+        CREATE OR REPLACE FUNCTION alter_content_type(
     table_name TEXT,
     column_name TEXT,
     column_type TEXT,
@@ -184,47 +192,67 @@ $$ LANGUAGE plpgsql;
 `)
 
     //insert into content type or table
-    await client.query(`
-CREATE OR REPLACE FUNCTION  agile_cms.insert_into_content_type(table_name TEXT, data JSONB) 
-RETURNS JSONB AS $$
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.insert_into_content_type(
+  p_table_name TEXT,
+  p_data       JSONB
+) RETURNS JSONB AS $$
 DECLARE
-    column_names TEXT := '';
-    column_values TEXT := '';
-    column_entry RECORD;
-    result_row RECORD;
-    result_json JSONB;
+  v_cols     TEXT := '';
+  v_vals     TEXT := '';
+  col_name   TEXT;
+  col_val    JSONB;
+  v_result   JSONB;
 BEGIN
-    FOR column_entry IN SELECT * FROM jsonb_each(data) LOOP
-        column_names := column_names || quote_ident(column_entry.key) || ', ';
-        column_values := column_values || quote_literal(column_entry.value) || ', ';
-    END LOOP;
+  -- 1) Build comma-separated lists of the JSONB keys and their literal values
+  FOR col_name, col_val IN
+    SELECT key, value
+      FROM jsonb_each(p_data)
+  LOOP
+    v_cols := v_cols || quote_ident(col_name) || ', ';
+    v_vals := v_vals
+      || quote_literal(col_val::text)
+      || CASE
+           WHEN (
+             SELECT data_type = 'jsonb'
+               FROM information_schema.columns
+              WHERE table_name  = p_table_name
+                AND column_name = col_name
+              LIMIT 1
+           )
+           THEN '::jsonb'
+           ELSE ''
+         END
+      || ', ';
+  END LOOP;
 
-    column_names := TRIM(BOTH ', ' FROM column_names);
-    column_values := TRIM(BOTH ', ' FROM column_values);
+  -- 2) Trim trailing commas
+  v_cols := rtrim(v_cols, ', ');
+  v_vals := rtrim(v_vals, ', ');
 
-    IF column_names = '' OR column_values = '' THEN
-        RAISE EXCEPTION 'Data must contain at least one column';
-    END IF;
+  IF v_cols = '' THEN
+    RAISE EXCEPTION 'Data must contain at least one column';
+  END IF;
 
-    EXECUTE format(
-        'INSERT INTO %I (%s) VALUES (%s) RETURNING *', 
-        table_name, column_names, column_values
-    ) INTO result_row;
+  -- 3) Insert and RETURN the *entire* row of t as JSONB (including id)
+  EXECUTE format(
+    'INSERT INTO %I AS t (%s) VALUES (%s)
+       RETURNING to_jsonb(t)',
+    p_table_name,
+    v_cols,
+    v_vals
+  )
+    INTO v_result;
 
-    result_json := to_jsonb(result_row);
-    RETURN result_json;
-
-EXCEPTION
-    WHEN OTHERS THEN
-        RETURN NULL;
+  RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
+
 
     `)
 
     // delete data from table
     await client.query(`
-      CREATE OR REPLACE FUNCTION  agile_cms.delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
       DECLARE
           row_count INT;
       BEGIN
@@ -238,7 +266,7 @@ $$ LANGUAGE plpgsql;
 
     // update content type data
     await client.query(`
-      CREATE OR REPLACE FUNCTION  agile_cms.update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
       DECLARE
           update_pairs TEXT := '';
           column_entry RECORD;
@@ -260,7 +288,7 @@ $$ LANGUAGE plpgsql;
     // delete table
 
     await client.query(`
-      CREATE OR REPLACE FUNCTION  agile_cms.delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
 BEGIN
     -- Prevent deletion of critical system tables
     IF table_name IN ('users', 'roles', 'user_roles', 'settings') THEN
@@ -282,7 +310,7 @@ $$ LANGUAGE plpgsql;
 
     // register super user function
     await client.query(`
-      CREATE OR REPLACE FUNCTION  agile_cms.register_super_admin(
+      CREATE OR REPLACE FUNCTION register_super_admin(
         p_firstname TEXT,
         p_lastname TEXT,
     p_email TEXT,
@@ -324,7 +352,7 @@ $$ LANGUAGE plpgsql;
 `)
 
     // register normal user or content user
-    await client.query(`CREATE OR REPLACE FUNCTION  agile_cms.register_user(
+    await client.query(`CREATE OR REPLACE FUNCTION register_user(
     p_email TEXT,
     p_password TEXT,
     p_role TEXT
@@ -362,7 +390,7 @@ $$ LANGUAGE plpgsql;`)
 
     // assign role to exixting user
 
-    await client.query(`CREATE OR REPLACE FUNCTION  agile_cms.assign_role_to_user(
+    await client.query(`CREATE OR REPLACE FUNCTION assign_role_to_user(
     p_email TEXT,
     p_role TEXT
 ) RETURNS BOOLEAN AS $$
@@ -393,7 +421,7 @@ END;
 $$ LANGUAGE plpgsql;`)
 
     // cleck user role
-    await client.query(`CREATE OR REPLACE FUNCTION  agile_cms.get_user_role(p_email TEXT)
+    await client.query(`CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
 RETURNS TABLE(role_name TEXT) AS $$
 BEGIN
     RETURN QUERY
@@ -406,7 +434,7 @@ END;
 $$ LANGUAGE plpgsql;`)
 
     // authenticate user
-    await client.query(`CREATE OR REPLACE FUNCTION  agile_cms.authenticate_user(
+    await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
     p_email TEXT,
     p_password TEXT
 ) RETURNS JSON AS $$
@@ -445,7 +473,7 @@ $$ LANGUAGE plpgsql;
 `)
 
     // find user to check in the db for login
-    await client.query(`CREATE OR REPLACE FUNCTION  agile_cms.find_user(p_email TEXT) 
+    await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
 RETURNS BOOLEAN AS $$
 DECLARE
     user_exists BOOLEAN;
@@ -486,7 +514,7 @@ $$ LANGUAGE plpgsql;
         -- Check if table exists
         SELECT EXISTS (
             SELECT 1 FROM information_schema.tables
-            WHERE table_schema = 'agile_cms'
+            WHERE table_schema = 'public'
             AND table_name = p_table_name
         ) INTO table_exists;
 
@@ -506,38 +534,44 @@ $$ LANGUAGE plpgsql;
     $$ LANGUAGE plpgsql;`
     )
 
+    // get all collections
     await client.query(`
-        CREATE OR REPLACE FUNCTION get_all_collections()
-        RETURNS JSON AS $$
-        DECLARE
-            result JSON;
-        BEGIN
-            SELECT json_agg(table_data) INTO result
-            FROM (
-                SELECT
-                    table_name AS collection_name,
-                    (SELECT json_agg(
-                                json_build_object(
-                                    'column_name', column_name,
-                                    'data_type', data_type
-                                )
-                            )
-                    FROM information_schema.columns c
-                    WHERE c.table_name = t.table_name
-                    AND c.table_schema = 'agile_cms'
-                    ) AS columns
-                FROM information_schema.tables t
-                WHERE t.table_schema = 'agile_cms'
-                ORDER BY t.table_name
-            ) AS table_data;
+       CREATE OR REPLACE FUNCTION get_all_collections()
+RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT json_agg(coll_obj ORDER BY coll_obj->>'collection_name')  
+  INTO result
+  FROM (
+    SELECT json_build_object(
+      'collection_name', t.table_name,
+      'columns', (
+        SELECT json_agg(
+                 json_build_object(
+                   'column_name', c.column_name,
+                   'data_type',   c.data_type
+                 )
+                 ORDER BY c.ordinal_position
+               )
+        FROM information_schema.columns c
+        WHERE c.table_schema = 'public'
+          AND c.table_name  = t.table_name
+      )
+    ) AS coll_obj
+    FROM information_schema.tables t
+    WHERE t.table_schema = 'public'
+  ) sub;
 
-            RETURN result;
-        END;
-        $$ LANGUAGE plpgsql;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql STABLE;
+
       `)
+
     await client.query(
       `
-              CREATE OR REPLACE FUNCTION  agile_cms.get_all_users()  
+              CREATE OR REPLACE FUNCTION get_all_users()  
               RETURNS TABLE(id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT) AS $$  
               BEGIN  
                   RETURN QUERY  
@@ -554,25 +588,29 @@ $$ LANGUAGE plpgsql;
     // get collection by name
     await client.query(
       `
-            CREATE OR REPLACE FUNCTION  agile_cms.get_collection_by_name(p_table_name TEXT)
-            RETURNS JSON AS $$
-            DECLARE
-                result JSON;
-            BEGIN
-                SELECT json_agg(
-                            json_build_object(
-                                'column_name', column_name,
-                                'data_type', data_type
-                            )
-                    )
-                INTO result
-                FROM information_schema.columns
-                WHERE table_name = p_table_name
-                AND table_schema = 'agile_cms';
+         CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
+  RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  SELECT COALESCE(
+           json_agg(
+             json_build_object(
+               'column_name', column_name,
+               'data_type',   data_type
+             )
+           ),
+           '[]'::json
+         )
+    INTO result
+    FROM information_schema.columns
+   WHERE lower(table_name)  = lower(p_table_name)
+     AND table_schema       = 'public';  -- or change to your schema
 
-                RETURN result;
-            END;
-            $$ LANGUAGE plpgsql;
+  RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
         
         `
     )
@@ -580,7 +618,7 @@ $$ LANGUAGE plpgsql;
     // delete attribute(column )from a table
     await client.query(
       `
-            CREATE OR REPLACE FUNCTION  agile_cms.delete_attribute_from_collection(
+            CREATE OR REPLACE FUNCTION delete_attribute_from_collection(
     p_table_name TEXT,
     p_column_name TEXT
 ) RETURNS BOOLEAN AS $$
@@ -609,7 +647,7 @@ $$ LANGUAGE plpgsql;
 
     await client.query(
       `
-CREATE OR REPLACE FUNCTION  agile_cms.get_collection_data(p_table_name TEXT)
+CREATE OR REPLACE FUNCTION get_collection_data(p_table_name TEXT)
 RETURNS JSON AS $$
 DECLARE
     result JSON;
@@ -633,7 +671,7 @@ $$ LANGUAGE plpgsql;
       `)
 
     await client.query(`
-        CREATE OR REPLACE FUNCTION  agile_cms.add_image(
+        CREATE OR REPLACE FUNCTION add_image(
   p_parent_table TEXT,     -- TEXT now
   p_parent_id    INT,
   p_url          JSONB     -- JSONB for array/object or single URL
