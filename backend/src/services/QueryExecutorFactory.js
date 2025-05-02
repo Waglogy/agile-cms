@@ -60,7 +60,7 @@ class QueryExecutorFactory {
 
   async getAllCollections() {
     console.log(`\n\n\n\nthis is the client:`, client, '\n\n\n\n')
-    const result = await client.query('SELECT * FROM get_all_collections()')
+    const result = await client.query('SELECT * FROM agile_cms.get_all_collections()')
     return result.rows[0]
   }
 
