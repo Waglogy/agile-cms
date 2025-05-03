@@ -17,7 +17,8 @@ export const collectionValidation = {
               'TIMESTAMP',
               'DATE',
               'NUMERIC',
-              'JSONB'
+              'JSONB',
+              'IMAGE'
             )
             .required(),
           constraints: Joi.string().allow('').optional(),
@@ -112,7 +113,8 @@ export const collectionValidation = {
         'TIMESTAMP',
         'DATE',
         'NUMERIC',
-        'JSONB'
+        'JSONB',
+        'IMAGE'
       )
       .required(),
     constraints: Joi.string().allow('').optional(),

@@ -1,6 +1,7 @@
 import pg from 'pg'
 import envConfig from '../config/env.config.js'
 import app from '../app.js'
+
 // import client from '../config/db.config.js'
 
 const { Client } = pg
@@ -49,8 +50,8 @@ async function initializeDatabase(db_name) {
     // ✅ Connect to the created database
     await client.connect()
     // console.log()
-    await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
-    await client.query(`SET search_path TO agile_cms;`)
+    // await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
+    // await client.query(`SET search_path TO agile_cms;`)
 
     // app.locals.client = client
 
