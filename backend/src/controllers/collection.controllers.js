@@ -125,7 +125,6 @@ export async function getCollectionData(req, res, next) {
 }
 
 // Insert new data into a collection
-// Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
     const { collectionName, ...body } = req.body
@@ -134,8 +133,6 @@ export async function insertData(req, res, next) {
         new AppError(400, 'Data insert failed', 'Please enter collection name')
       )
     }
-
-    console.log(collectionName)
 
     // 1) make sure the collection exists
     const collection = await queryExecutor.getCollectionByName(
@@ -154,13 +151,9 @@ export async function insertData(req, res, next) {
     // 2) fetch your metadata comments
     const meta = await queryExecutor.getTableMetadata(collectionName)
 
-    console.log(meta)
-
     // suppose your image field is named "avatar"
-    const rawComment = meta['avatar'] // e.g. "is_multiple=true"
+    const rawComment = meta['images'] // e.g. "is_multiple=true"
     const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 't'
-
-    console.log('ALLOW_MULTIPLE', ALLOW_MULTIPLE)
 
     // 3) insert the row
     const payload = { ...body }
@@ -172,8 +165,6 @@ export async function insertData(req, res, next) {
     }
     const newRecordId = insertResult.id
 
-    console.log(insertResult)
-
     const rawFiles = req.files?.image || []
     const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
 
@@ -182,8 +173,6 @@ export async function insertData(req, res, next) {
 
     // 5) process uploads (returns an array of image‐container objects)
     // const uploadResults = files.length ? await imageUploader(files) : []
-
-    console.log(uploadResults)
 
     // 6) multiple images → gallery table
     if (ALLOW_MULTIPLE && uploadResults.length > 1) {

@@ -3,7 +3,7 @@ import app from './app.js'
 import envConfig from './config/env.config.js'
 import initializeDatabase from './services/initializeDatabase.js'
 
-initializeDatabase('DB_NAME')
+initializeDatabase('music')
   .then(() => {
     console.log('Everything Is running as expected 😏')
     app.listen(envConfig.PORT ?? 3000, () => {
