@@ -663,7 +663,6 @@ $$ LANGUAGE plpgsql;
     await client.query(`
         CREATE TABLE IF NOT EXISTS images (
   id           SERIAL PRIMARY KEY,
-  parent_table TEXT,           -- no more 255-char cap
   parent_id    INT,
   url          JSONB,
   created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -672,14 +671,13 @@ $$ LANGUAGE plpgsql;
 
     await client.query(`
         CREATE OR REPLACE FUNCTION add_image(
-  p_parent_table TEXT,     -- TEXT now
   p_parent_id    INT,
   p_url          JSONB     -- JSONB for array/object or single URL
 )
 RETURNS VOID AS $$
 BEGIN
-  INSERT INTO images (parent_table, parent_id, url)
-    VALUES (p_parent_table, p_parent_id, p_url);
+  INSERT INTO images (parent_id, url)
+    VALUES (p_parent_id, p_url);
 END;
 $$ LANGUAGE plpgsql;
       `)

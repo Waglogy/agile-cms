@@ -167,10 +167,10 @@ class QueryExecutorFactory {
     return result.rows // Extract actual database names
   }
 
-  async addImage({ parentTable, parentId, url }) {
+  async addImage({ parentId, url }) {
     try {
-      const query = 'SELECT add_image($1, $2, $3)'
-      const values = [parentTable, parentId, url]
+      const query = 'SELECT add_image($1, $2)'
+      const values = [parentId, url]
 
       await client.query(query, values)
 

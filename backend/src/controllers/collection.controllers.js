@@ -148,10 +148,10 @@ export async function insertData(req, res, next) {
       )
     }
 
-    // 2) fetch your metadata comments
+    // 2) fetch metadata comments
     const meta = await queryExecutor.getTableMetadata(collectionName)
 
-    // suppose your image field is named "avatar"
+    // TODO to be changed dynamically.
     const rawComment = meta['images'] // e.g. "is_multiple=true"
     const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 't'
 
@@ -163,6 +163,7 @@ export async function insertData(req, res, next) {
         .status(500)
         .json({ status: false, message: 'Data insertion failed' })
     }
+
     const newRecordId = insertResult.id
 
     const rawFiles = req.files?.image || []
@@ -178,9 +179,8 @@ export async function insertData(req, res, next) {
     if (ALLOW_MULTIPLE && uploadResults.length > 1) {
       for (const container of uploadResults) {
         await queryExecutor.addImage({
-          parentTable: collectionName,
           parentId: newRecordId,
-          url: container, // container is your JSONB object
+          url: container, // JSONB object
         })
       }
     }
@@ -189,7 +189,7 @@ export async function insertData(req, res, next) {
       await queryExecutor.updateData(
         collectionName,
         newRecordId,
-        { avatar: uploadResults[0] } // first (and only) container
+        { images: uploadResults[0] } // first (and only) container
       )
     }
 
