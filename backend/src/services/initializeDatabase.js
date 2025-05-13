@@ -1,6 +1,5 @@
 import pg from 'pg'
 import envConfig from '../config/env.config.js'
-import app from '../app.js'
 // import client from '../config/db.config.js'
 
 const { Client } = pg
@@ -644,7 +643,6 @@ $$ LANGUAGE plpgsql;
     )
 
     // get collection data
-
     await client.query(
       `
 CREATE OR REPLACE FUNCTION get_collection_data(p_table_name TEXT)
@@ -660,26 +658,97 @@ $$ LANGUAGE plpgsql;
         `
     )
 
+    // psql function to create function and table
     await client.query(`
-        CREATE TABLE IF NOT EXISTS images (
-  id           SERIAL PRIMARY KEY,
-  parent_id    INT,
-  url          JSONB,
-  created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-      `)
 
-    await client.query(`
-        CREATE OR REPLACE FUNCTION add_image(
-  p_parent_id    INT,
-  p_url          JSONB     -- JSONB for array/object or single URL
+      -- 1) Drop the old child table
+DROP TABLE IF EXISTS agile_cms.image_galleries;
+
+-- 2) Add a JSONB column to hold an array of URLs
+ALTER TABLE agile_cms.images
+  ADD COLUMN IF NOT EXISTS gallery_urls JSONB NOT NULL
+    DEFAULT '[]'::jsonb;
+
+
+-- 3) Re-define create_image to take an optional JSONB of URLs
+CREATE OR REPLACE FUNCTION agile_cms.create_image(
+  p_title        TEXT,
+  p_description  TEXT      DEFAULT NULL,
+  p_gallery_urls JSONB     DEFAULT '[]'::jsonb
 )
-RETURNS VOID AS $$
+RETURNS TABLE (
+  image_id      INT,
+  title         TEXT,
+  description   TEXT,
+  created_at    TIMESTAMPTZ,
+  gallery_urls  JSONB
+)
+LANGUAGE plpgsql AS $$
 BEGIN
-  INSERT INTO images (parent_id, url)
-    VALUES (p_parent_id, p_url);
+  RETURN QUERY
+    INSERT INTO agile_cms.images (title, description, gallery_urls)
+    VALUES (p_title, p_description, p_gallery_urls)
+    RETURNING image_id, title, description, created_at, gallery_urls;
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+
+-- 4) Helper to append a single URL into the JSONB array
+CREATE OR REPLACE FUNCTION agile_cms.add_gallery_url(
+  p_image_id  INT,
+  p_url       TEXT
+)
+RETURNS TABLE (
+  image_id     INT,
+  gallery_urls JSONB
+)
+LANGUAGE plpgsql AS $$
+BEGIN
+  UPDATE agile_cms.images
+     SET gallery_urls = gallery_urls || to_jsonb(p_url)
+   WHERE image_id = p_image_id
+  RETURNING image_id, gallery_urls;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Image % not found', p_image_id;
+  END IF;
+END;
+$$;
+
+
+-- 5) Updated “get” functions now include gallery_urls:
+
+-- 5.1 Get all images
+CREATE OR REPLACE FUNCTION agile_cms.get_images()
+RETURNS TABLE (
+  image_id     INT,
+  title         TEXT,
+  description   TEXT,
+  created_at    TIMESTAMPTZ,
+  gallery_urls  JSONB
+)
+LANGUAGE sql AS $$
+  SELECT image_id, title, description, created_at, gallery_urls
+    FROM agile_cms.images
+    ORDER BY created_at DESC;
+$$;
+
+-- 5.2 Get one image by ID
+CREATE OR REPLACE FUNCTION agile_cms.get_image_by_id(p_id INT)
+RETURNS TABLE (
+  image_id     INT,
+  title         TEXT,
+  description   TEXT,
+  created_at    TIMESTAMPTZ,
+  gallery_urls  JSONB
+)
+LANGUAGE sql AS $$
+  SELECT image_id, title, description, created_at, gallery_urls
+    FROM agile_cms.images
+   WHERE image_id = p_id;
+$$;
+
+
       `)
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
