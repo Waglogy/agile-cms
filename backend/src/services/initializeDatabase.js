@@ -660,96 +660,165 @@ $$ LANGUAGE plpgsql;
 
     // psql function to create function and table
     await client.query(`
+-- 0. Create schema
+CREATE SCHEMA IF NOT EXISTS agile_cms;
 
-      -- 1) Drop the old child table
-DROP TABLE IF EXISTS agile_cms.image_galleries;
+-- 1. images table
+CREATE TABLE IF NOT EXISTS agile_cms.images (
+  image_id    SERIAL        PRIMARY KEY,
+  title       TEXT          NOT NULL,
+  description TEXT,
+  created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
+);
 
--- 2) Add a JSONB column to hold an array of URLs
-ALTER TABLE agile_cms.images
-  ADD COLUMN IF NOT EXISTS gallery_urls JSONB NOT NULL
-    DEFAULT '[]'::jsonb;
+-- 2. image_galleries table
+CREATE TABLE IF NOT EXISTS agile_cms.image_galleries (
+  image_gallery_id SERIAL     PRIMARY KEY,
+  image_id         INT         NOT NULL
+    REFERENCES agile_cms.images(image_id)
+    ON DELETE CASCADE,
+  url              JSONB       NOT NULL
+);
 
+-- 3. Index to speed up joins/filters on image_id
+CREATE INDEX IF NOT EXISTS idx_image_galleries_image_id
+  ON agile_cms.image_galleries(image_id);
 
--- 3) Re-define create_image to take an optional JSONB of URLs
+-- 4. FUNCTION: create_image
 CREATE OR REPLACE FUNCTION agile_cms.create_image(
-  p_title        TEXT,
-  p_description  TEXT      DEFAULT NULL,
-  p_gallery_urls JSONB     DEFAULT '[]'::jsonb
+  p_title       TEXT,
+  p_description TEXT DEFAULT NULL
 )
 RETURNS TABLE (
-  image_id      INT,
-  title         TEXT,
-  description   TEXT,
-  created_at    TIMESTAMPTZ,
-  gallery_urls  JSONB
+  image_id    INT,
+  title       TEXT,
+  description TEXT,
+  created_at  TIMESTAMPTZ
 )
 LANGUAGE plpgsql AS $$
 BEGIN
   RETURN QUERY
-    INSERT INTO agile_cms.images (title, description, gallery_urls)
-    VALUES (p_title, p_description, p_gallery_urls)
-    RETURNING image_id, title, description, created_at, gallery_urls;
+    INSERT INTO agile_cms.images AS img(title, description)
+    VALUES (p_title, p_description)
+    RETURNING
+      img.image_id,
+      img.title,
+      img.description,
+      img.created_at;
 END;
 $$;
 
-
--- 4) Helper to append a single URL into the JSONB array
-CREATE OR REPLACE FUNCTION agile_cms.add_gallery_url(
-  p_image_id  INT,
-  p_url       TEXT
+-- 5. FUNCTION: create_image_gallery
+CREATE OR REPLACE FUNCTION agile_cms.create_image_gallery(
+  p_image_id   INT,
+  p_url        JSONB
 )
 RETURNS TABLE (
-  image_id     INT,
-  gallery_urls JSONB
+  image_gallery_id INT,
+  image_id         INT,
+  url               JSONB
 )
 LANGUAGE plpgsql AS $$
 BEGIN
-  UPDATE agile_cms.images
-     SET gallery_urls = gallery_urls || to_jsonb(p_url)
-   WHERE image_id = p_image_id
-  RETURNING image_id, gallery_urls;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Image % not found', p_image_id;
-  END IF;
+  RETURN QUERY
+    INSERT INTO agile_cms.image_galleries AS ig(image_id, url)
+    VALUES (p_image_id, p_url)
+    RETURNING
+      ig.image_gallery_id,
+      ig.image_id,
+      ig.url;
 END;
 $$;
 
-
--- 5) Updated “get” functions now include gallery_urls:
-
--- 5.1 Get all images
-CREATE OR REPLACE FUNCTION agile_cms.get_images()
-RETURNS TABLE (
-  image_id     INT,
-  title         TEXT,
-  description   TEXT,
-  created_at    TIMESTAMPTZ,
-  gallery_urls  JSONB
-)
-LANGUAGE sql AS $$
-  SELECT image_id, title, description, created_at, gallery_urls
-    FROM agile_cms.images
-    ORDER BY created_at DESC;
-$$;
-
--- 5.2 Get one image by ID
-CREATE OR REPLACE FUNCTION agile_cms.get_image_by_id(p_id INT)
-RETURNS TABLE (
-  image_id     INT,
-  title         TEXT,
-  description   TEXT,
-  created_at    TIMESTAMPTZ,
-  gallery_urls  JSONB
-)
-LANGUAGE sql AS $$
-  SELECT image_id, title, description, created_at, gallery_urls
-    FROM agile_cms.images
-   WHERE image_id = p_id;
-$$;
-
-
       `)
+
+    await client.query(`
+        
+        
+        -- 6. FUNCTION: get a single image by its ID
+CREATE OR REPLACE FUNCTION agile_cms.get_image(
+  p_image_id INT
+)
+RETURNS TABLE (
+  image_id    INT,
+  title       TEXT,
+  description TEXT,
+  created_at  TIMESTAMPTZ
+)
+LANGUAGE sql AS $$
+  SELECT image_id, title, description, created_at
+    FROM agile_cms.images
+   WHERE image_id = p_image_id;
+$$;
+
+-- 7. FUNCTION: list all images
+CREATE OR REPLACE FUNCTION agile_cms.list_images()
+RETURNS SETOF agile_cms.images
+LANGUAGE sql AS $$
+  SELECT * FROM agile_cms.images;
+$$;
+
+-- 8. FUNCTION: get a single gallery entry by its ID
+CREATE OR REPLACE FUNCTION agile_cms.get_image_gallery(
+  p_image_gallery_id INT
+)
+RETURNS TABLE (
+  image_gallery_id INT,
+  image_id         INT,
+  url              JSONB
+)
+LANGUAGE sql AS $$
+  SELECT image_gallery_id, image_id, url
+    FROM agile_cms.image_galleries
+   WHERE image_gallery_id = p_image_gallery_id;
+$$;
+
+-- 9. FUNCTION: list all gallery entries
+CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries()
+RETURNS SETOF agile_cms.image_galleries
+LANGUAGE sql AS $$
+  SELECT * FROM agile_cms.image_galleries;
+$$;
+
+-- 10. FUNCTION: list all gallery entries for a given image
+CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries_by_image(
+  p_image_id INT
+)
+RETURNS TABLE (
+  image_gallery_id INT,
+  image_id         INT,
+  url              JSONB
+)
+LANGUAGE sql AS $$
+  SELECT image_gallery_id, image_id, url
+    FROM agile_cms.image_galleries
+   WHERE image_id = p_image_id;
+$$;
+
+-- 11. FUNCTION: list all images joined with their gallery rows
+CREATE OR REPLACE FUNCTION agile_cms.list_images_with_galleries()
+RETURNS TABLE (
+  image_id         INT,
+  title            TEXT,
+  description      TEXT,
+  created_at       TIMESTAMPTZ,
+  image_gallery_id INT,
+  url              JSONB
+)
+LANGUAGE sql AS $$
+  SELECT
+    i.image_id,
+    i.title,
+    i.description,
+    i.created_at,
+    ig.image_gallery_id,
+    ig.url
+  FROM agile_cms.images AS i
+  LEFT JOIN agile_cms.image_galleries AS ig
+    ON i.image_id = ig.image_id;
+$$;
+
+        `)
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
