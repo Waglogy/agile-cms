@@ -167,20 +167,6 @@ class QueryExecutorFactory {
     return result.rows // Extract actual database names
   }
 
-  async addImage({ parentId, url }) {
-    try {
-      const query = 'SELECT add_image($1, $2)'
-      const values = [parentId, url]
-
-      await client.query(query, values)
-
-      console.log('Image inserted successfully!')
-    } catch (error) {
-      console.error('Error inserting image:', error)
-      throw error
-    }
-  }
-
   async getColumnMetadata(tableName, columnName) {
     const sql = `
       SELECT col_description(
@@ -219,6 +205,92 @@ class QueryExecutorFactory {
       acc[column_name] = meta
       return acc
     }, {})
+  }
+
+  // **************** Image & Gallery CREATE methods ****************
+
+  /**
+   * Create a new image record
+   */
+  async createImage(title, description) {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.create_image($1, $2)',
+      [title, description]
+    )
+    return result.rows[0]
+  }
+
+  /**
+   * Create a new gallery entry for an image
+   */
+  async createImageGallery(imageId, urlJson) {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.create_image_gallery($1, $2)',
+      [imageId, urlJson]
+    )
+    return result.rows[0]
+  }
+
+  // **************** Image & Gallery GET methods ****************
+
+  /**
+   * Fetch a single image by ID
+   */
+  async getImage(imageId) {
+    const result = await client.query('SELECT * FROM agile_cms.get_image($1)', [
+      imageId,
+    ])
+    return result.rows[0]
+  }
+
+  /**
+   * Fetch all images
+   */
+  async listImages() {
+    const result = await client.query('SELECT * FROM agile_cms.list_images()')
+    return result.rows
+  }
+
+  /**
+   * Fetch a single gallery entry by its gallery ID
+   */
+  async getImageGallery(galleryId) {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.get_image_gallery($1)',
+      [galleryId]
+    )
+    return result.rows[0]
+  }
+
+  /**
+   * Fetch all gallery entries
+   */
+  async listImageGalleries() {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.list_image_galleries()'
+    )
+    return result.rows
+  }
+
+  /**
+   * Fetch all gallery entries for a given image ID
+   */
+  async listImageGalleriesByImage(imageId) {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.list_image_galleries_by_image($1)',
+      [imageId]
+    )
+    return result.rows
+  }
+
+  /**
+   * Fetch every image joined with its gallery rows
+   */
+  async listImagesWithGalleries() {
+    const result = await client.query(
+      'SELECT * FROM agile_cms.list_images_with_galleries()'
+    )
+    return result.rows
   }
 }
 
