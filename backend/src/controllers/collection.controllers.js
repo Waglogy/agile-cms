@@ -70,10 +70,12 @@ export async function getCollectionByName(req, res, next) {
 
   try {
     const collection = await queryExecutor.getCollectionByName(tableName)
+    const meta_data = await queryExecutor.getTableMetadata(tableName)
     return res.json({
       status: true,
       message: 'Collection retrieved successfully',
       data: collection,
+      meta_data,
     })
   } catch (err) {
     return next(new AppError(500, 'Failed to fetch collection', err))

@@ -88,10 +88,9 @@ class QueryExecutorFactory {
   }
 
   async getCollectionByName(tableName) {
-    const result = await client.query(
-      'SELECT agile_cms.get_collection_by_name($1)',
-      [tableName]
-    )
+    const result = await client.query('SELECT get_collection_by_name($1)', [
+      tableName,
+    ])
 
     return result.rows[0].get_collection_by_name
   }
