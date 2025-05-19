@@ -36,7 +36,7 @@ export const imageUploader = async (files) => {
           const filePath = `/uploads/converted/${path.basename(uploadDir)}/${label}-${filename}.webp`
           const base64 = fs.readFileSync(
             path.join(uploadDir, `${label}-${filename}.webp`),
-            { encoding: 'base64url' }
+            { encoding: 'base64' }
           )
           return [label, { imagePath: filePath, base64 }]
         })
