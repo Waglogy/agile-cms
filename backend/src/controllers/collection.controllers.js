@@ -170,8 +170,6 @@ export async function insertData(req, res, next) {
       'Test Description'
     )
 
-    console.log(result)
-
     for (const container of uploadResults) {
       await queryExecutor.createImageGallery(
         result.image_id, // /* parentId:  */ newRecordId,
@@ -179,21 +177,15 @@ export async function insertData(req, res, next) {
       )
     }
 
-    console.log(collectionName)
-
-    const resu = await queryExecutor.updateData(collectionName, newRecordId, {
+    await queryExecutor.updateData(collectionName, newRecordId, {
       images: result.image_id,
     })
-
-    console.log(resu)
 
     /* await queryExecutor.updateData(
       collectionName,
       newRecordId,
       { images: uploadResults[0] } // first (and only) container
     ) */
-
-    console.log(newRecordId)
 
     // 8) respond
     return res.json({

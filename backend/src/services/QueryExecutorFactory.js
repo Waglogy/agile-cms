@@ -12,8 +12,6 @@ class QueryExecutorFactory {
   }
 
   async createCollection(tableName, schema) {
-    // await client.connect()
-    // console.log(object)
     const result = await client.query('SELECT create_content_type($1, $2)', [
       tableName,
       schema,
@@ -30,8 +28,6 @@ class QueryExecutorFactory {
       [tableName, data]
     )
 
-    console.log(result)
-
     return result.rows[0].insert_into_content_type
   }
 
@@ -40,7 +36,6 @@ class QueryExecutorFactory {
       'SELECT update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
-    console.log(result)
 
     return result.rows[0].update_content_type_data
   }
@@ -97,8 +92,6 @@ class QueryExecutorFactory {
       'SELECT agile_cms.get_collection_by_name($1)',
       [tableName]
     )
-
-    console.log(result)
 
     return result.rows[0].get_collection_by_name
   }
