@@ -40,6 +40,8 @@ class QueryExecutorFactory {
       'SELECT update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
+    console.log(result)
+
     return result.rows[0].update_content_type_data
   }
 

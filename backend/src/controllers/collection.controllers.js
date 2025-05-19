@@ -148,13 +148,6 @@ export async function insertData(req, res, next) {
       )
     }
 
-    // 2) fetch metadata comments
-    const meta = await queryExecutor.getTableMetadata(collectionName)
-
-    // TODO to be changed dynamically.
-    const rawComment = meta['images'] // e.g. "is_multiple=true"
-    const ALLOW_MULTIPLE = rawComment?.split('=')[1] === 't'
-
     // 3) insert the row
     const payload = { ...body }
     const insertResult = await queryExecutor.insertData(collectionName, payload)
@@ -164,7 +157,7 @@ export async function insertData(req, res, next) {
         .json({ status: false, message: 'Data insertion failed' })
     }
 
-    const newRecordId = insertResult.id
+    const newRecordId = insertResult.id // inserted data on the main table.
 
     const rawFiles = req.files?.image || []
     const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
@@ -172,38 +165,33 @@ export async function insertData(req, res, next) {
     // now call the uploader with that array:
     const uploadResults = files.length ? await imageUploader(files) : []
 
-    // 5) process uploads (returns an array of image‐container objects)
-    // const uploadResults = files.length ? await imageUploader(files) : []
+    const result = await queryExecutor.createImage(
+      'Test Title',
+      'Test Description'
+    )
 
-    // 6) multiple images → gallery table
-    if (ALLOW_MULTIPLE && uploadResults.length > 1) {
-      const result = await queryExecutor.createImage(
-        'Test Title',
-        'Test Description'
-      )
+    console.log(result)
 
-      console.log(result)
-
-      for (const container of uploadResults) {
-        await queryExecutor.createImageGallery(
-          result.image_id, // /* parentId:  */ newRecordId,
-          /* url:  */ container // JSONB object
-        )
-      }
-
-      await queryExecutor.updateData(collectionName, newRecordId, {
-        images: result.id,
-      })
-    }
-
-    // 7) single‐file → JSONB column
-    else if (uploadResults.length === 1) {
-      await queryExecutor.updateData(
-        collectionName,
-        newRecordId,
-        { images: uploadResults[0] } // first (and only) container
+    for (const container of uploadResults) {
+      await queryExecutor.createImageGallery(
+        result.image_id, // /* parentId:  */ newRecordId,
+        /* url:  */ container // JSONB object
       )
     }
+
+    console.log(collectionName)
+
+    const resu = await queryExecutor.updateData(collectionName, newRecordId, {
+      images: result.image_id,
+    })
+
+    console.log(resu)
+
+    /* await queryExecutor.updateData(
+      collectionName,
+      newRecordId,
+      { images: uploadResults[0] } // first (and only) container
+    ) */
 
     console.log(newRecordId)
 
