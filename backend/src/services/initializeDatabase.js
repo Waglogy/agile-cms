@@ -513,7 +513,7 @@ $$ LANGUAGE plpgsql;
         -- Check if table exists
         SELECT EXISTS (
             SELECT 1 FROM information_schema.tables
-            WHERE table_schema = 'public'
+            WHERE table_schema = 'agile_cms'
             AND table_name = p_table_name
         ) INTO table_exists;
 
@@ -554,7 +554,7 @@ BEGIN
                  ORDER BY c.ordinal_position
                )
         FROM information_schema.columns c
-        WHERE c.table_schema = 'public'
+        WHERE c.table_schema = 'agile_cms'
           AND c.table_name  = t.table_name
       )
     ) AS coll_obj
@@ -604,7 +604,7 @@ BEGIN
     INTO result
     FROM information_schema.columns
    WHERE lower(table_name)  = lower(p_table_name)
-     AND table_schema       = 'public';  -- or change to your schema
+     AND table_schema       = 'agile_cms';  -- or change to your schema
 
   RETURN result;
 END;
