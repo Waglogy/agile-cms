@@ -559,7 +559,7 @@ BEGIN
       )
     ) AS coll_obj
     FROM information_schema.tables t
-    WHERE t.table_schema = 'public'
+    WHERE t.table_schema = 'agile_cms'
   ) sub;
 
   RETURN result;
