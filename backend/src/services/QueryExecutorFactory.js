@@ -110,6 +110,20 @@ class QueryExecutorFactory {
     return result.rows[0].get_collection_data
   }
 
+  async getCollectionDataWithImages() {
+    const result = await client.query(`SELECT 
+  test.*,
+  img.*,
+  json_agg(img_gal.*) AS image_galleries
+FROM agile_cms.ubtl_test AS test
+JOIN agile_cms.images AS img ON test.id = img.image_id
+JOIN agile_cms.image_galleries AS img_gal ON img.image_id = img_gal.image_id
+GROUP BY test.id, img.image_id;
+`)
+
+    return result.rows[0]
+  }
+
   // ***********************USEERRRRR METHODS*****************************
   // *********************************************************************
   // *********************************************************************

@@ -109,13 +109,21 @@ export async function deleteAttributeFromCollection(req, res, next) {
 // Retrieve data from a specific collection
 export async function getCollectionData(req, res, next) {
   const { tableName } = req.params
+  const { files } = req.query
 
   if (!tableName) {
     return next(new AppError(400, 'Table name is required'))
   }
 
   try {
-    const data = await queryExecutor.getCollectionData(tableName)
+    let data
+
+    if (files === 'true') {
+      data = await queryExecutor.getCollectionDataWithImages(tableName)
+    } else {
+      data = await queryExecutor.getCollectionData(tableName)
+    }
+
     return res.json({
       status: true,
       message: 'Data retrieved successfully',
