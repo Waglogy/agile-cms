@@ -177,13 +177,25 @@ export async function insertData(req, res, next) {
 
     // 6) multiple images → gallery table
     if (ALLOW_MULTIPLE && uploadResults.length > 1) {
+      const result = await queryExecutor.createImage(
+        'Test Title',
+        'Test Description'
+      )
+
+      console.log(result)
+
       for (const container of uploadResults) {
-        await queryExecutor.addImage({
-          parentId: newRecordId,
-          url: container, // JSONB object
-        })
+        await queryExecutor.createImageGallery(
+          result.image_id, // /* parentId:  */ newRecordId,
+          /* url:  */ container // JSONB object
+        )
       }
+
+      await queryExecutor.updateData(collectionName, newRecordId, {
+        images: result.id,
+      })
     }
+
     // 7) single‐file → JSONB column
     else if (uploadResults.length === 1) {
       await queryExecutor.updateData(
@@ -192,6 +204,8 @@ export async function insertData(req, res, next) {
         { images: uploadResults[0] } // first (and only) container
       )
     }
+
+    console.log(newRecordId)
 
     // 8) respond
     return res.json({

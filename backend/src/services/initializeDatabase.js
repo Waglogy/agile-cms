@@ -110,7 +110,7 @@ async function initializeDatabase(db_name) {
     // create dynamic collection or tables
     await client.query(`
         
-        CREATE OR REPLACE FUNCTION create_content_type(
+        CREATE OR REPLACE FUNCTION agile_cms.create_content_type(
   tbl_name   TEXT,
   schema_def JSONB
 ) RETURNS TEXT AS $$
@@ -166,7 +166,7 @@ $$ LANGUAGE plpgsql;
 
     // alter dynamic table or collection
     await client.query(`
-        CREATE OR REPLACE FUNCTION alter_content_type(
+        CREATE OR REPLACE FUNCTION agile_cms.alter_content_type(
     table_name TEXT,
     column_name TEXT,
     column_type TEXT,
@@ -251,7 +251,7 @@ $$ LANGUAGE plpgsql;
 
     // delete data from table
     await client.query(`
-      CREATE OR REPLACE FUNCTION delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION agile_cms.delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
       DECLARE
           row_count INT;
       BEGIN
@@ -265,7 +265,7 @@ $$ LANGUAGE plpgsql;
 
     // update content type data
     await client.query(`
-      CREATE OR REPLACE FUNCTION update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION agile_cms.update_content_type_data(table_name TEXT, id INT, update_data JSONB) RETURNS BOOLEAN AS $$
       DECLARE
           update_pairs TEXT := '';
           column_entry RECORD;
@@ -287,7 +287,7 @@ $$ LANGUAGE plpgsql;
     // delete table
 
     await client.query(`
-      CREATE OR REPLACE FUNCTION delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
+      CREATE OR REPLACE FUNCTION agile_cms.delete_content_type_table(table_name TEXT) RETURNS BOOLEAN AS $$
 BEGIN
     -- Prevent deletion of critical system tables
     IF table_name IN ('users', 'roles', 'user_roles', 'settings') THEN
@@ -309,7 +309,7 @@ $$ LANGUAGE plpgsql;
 
     // register super user function
     await client.query(`
-      CREATE OR REPLACE FUNCTION register_super_admin(
+      CREATE OR REPLACE FUNCTION agile_cms.register_super_admin(
         p_firstname TEXT,
         p_lastname TEXT,
     p_email TEXT,
@@ -351,7 +351,7 @@ $$ LANGUAGE plpgsql;
 `)
 
     // register normal user or content user
-    await client.query(`CREATE OR REPLACE FUNCTION register_user(
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.register_user(
     p_email TEXT,
     p_password TEXT,
     p_role TEXT
@@ -389,7 +389,7 @@ $$ LANGUAGE plpgsql;`)
 
     // assign role to exixting user
 
-    await client.query(`CREATE OR REPLACE FUNCTION assign_role_to_user(
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.assign_role_to_user(
     p_email TEXT,
     p_role TEXT
 ) RETURNS BOOLEAN AS $$
@@ -420,7 +420,7 @@ END;
 $$ LANGUAGE plpgsql;`)
 
     // cleck user role
-    await client.query(`CREATE OR REPLACE FUNCTION get_user_role(p_email TEXT)
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.get_user_role(p_email TEXT)
 RETURNS TABLE(role_name TEXT) AS $$
 BEGIN
     RETURN QUERY
@@ -433,7 +433,7 @@ END;
 $$ LANGUAGE plpgsql;`)
 
     // authenticate user
-    await client.query(`CREATE OR REPLACE FUNCTION authenticate_user(
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.authenticate_user(
     p_email TEXT,
     p_password TEXT
 ) RETURNS JSON AS $$
@@ -472,7 +472,7 @@ $$ LANGUAGE plpgsql;
 `)
 
     // find user to check in the db for login
-    await client.query(`CREATE OR REPLACE FUNCTION find_user(p_email TEXT) 
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.find_user(p_email TEXT) 
 RETURNS BOOLEAN AS $$
 DECLARE
     user_exists BOOLEAN;
@@ -535,7 +535,7 @@ $$ LANGUAGE plpgsql;
 
     // get all collections
     await client.query(`
-       CREATE OR REPLACE FUNCTION get_all_collections()
+       CREATE OR REPLACE FUNCTION agile_cms.get_all_collections()
 RETURNS JSON AS $$
 DECLARE
   result JSON;
@@ -570,7 +570,7 @@ $$ LANGUAGE plpgsql STABLE;
 
     await client.query(
       `
-              CREATE OR REPLACE FUNCTION get_all_users()  
+              CREATE OR REPLACE FUNCTION agile_cms.get_all_users()  
               RETURNS TABLE(id UUID, first_name TEXT, last_name TEXT, email TEXT, role TEXT) AS $$  
               BEGIN  
                   RETURN QUERY  
@@ -587,7 +587,7 @@ $$ LANGUAGE plpgsql STABLE;
     // get collection by name
     await client.query(
       `
-         CREATE OR REPLACE FUNCTION get_collection_by_name(p_table_name TEXT)
+         CREATE OR REPLACE FUNCTION agile_cms.get_collection_by_name(p_table_name TEXT)
   RETURNS JSON AS $$
 DECLARE
   result JSON;
@@ -617,7 +617,7 @@ $$ LANGUAGE plpgsql;
     // delete attribute(column )from a table
     await client.query(
       `
-            CREATE OR REPLACE FUNCTION delete_attribute_from_collection(
+            CREATE OR REPLACE FUNCTION agile_cms.delete_attribute_from_collection(
     p_table_name TEXT,
     p_column_name TEXT
 ) RETURNS BOOLEAN AS $$
@@ -645,7 +645,7 @@ $$ LANGUAGE plpgsql;
     // get collection data
     await client.query(
       `
-CREATE OR REPLACE FUNCTION get_collection_data(p_table_name TEXT)
+CREATE OR REPLACE FUNCTION agile_cms.get_collection_data(p_table_name TEXT)
 RETURNS JSON AS $$
 DECLARE
     result JSON;
@@ -660,8 +660,6 @@ $$ LANGUAGE plpgsql;
 
     // psql function to create function and table
     await client.query(`
--- 0. Create schema
-CREATE SCHEMA IF NOT EXISTS agile_cms;
 
 -- 1. images table
 CREATE TABLE IF NOT EXISTS agile_cms.images (
@@ -708,7 +706,7 @@ BEGIN
 END;
 $$;
 
--- 5. FUNCTION: create_image_gallery
+-- 5. FUNCTION: agile_cms.create_image_gallery
 CREATE OR REPLACE FUNCTION agile_cms.create_image_gallery(
   p_image_id   INT,
   p_url        JSONB
