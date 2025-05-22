@@ -1,29 +1,67 @@
-import React from 'react';
+import React from 'react'
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
-    super(props);
-    this.state = { hasError: false };
+    super(props)
+    this.state = {
+      hasError: false,
+      errorMessage: '',
+      appMessage: '',
+      messageType: 'info',
+    }
   }
 
   static getDerivedStateFromError(error) {
-    // Update state so the next render will show the fallback UI.
-    return { hasError: true };
+    return {
+      hasError: true,
+      errorMessage: error.toString(),
+      messageType: 'error',
+    }
   }
 
   componentDidCatch(error, errorInfo) {
-    // You can log the error to an error reporting service
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    console.error('ErrorBoundary caught an error:', error, errorInfo)
+  }
+
+  showMessage = (message, type = 'info') => {
+    this.setState({ appMessage: message, messageType: type })
+
+    setTimeout(() => {
+      this.setState({ appMessage: '', messageType: 'info' })
+    }, 5000)
   }
 
   render() {
-    if (this.state.hasError) {
-      // You can render any custom fallback UI
-      return <h1>Something went wrong.</h1>;
-    }
+    const { appMessage, messageType } = this.state
+    const { children } = this.props
 
-    return this.props.children; 
+    const messageStyle = {
+      success: 'bg-green-600',
+      error: 'bg-red-600',
+      info: 'bg-blue-600',
+    }[messageType]
+
+    // ✅ This is the key: inject showAppMessage
+    const enhancedChildren = React.Children.map(children, (child) =>
+      React.isValidElement(child)
+        ? React.cloneElement(child, { showAppMessage: this.showMessage })
+        : child
+    )
+
+    return (
+      <>
+        {enhancedChildren}
+
+        {appMessage && (
+          <div
+            className={`fixed bottom-0 left-0 right-0 ${messageStyle} text-white text-sm p-3 text-center shadow-md z-50`}
+          >
+            {appMessage}
+          </div>
+        )}
+      </>
+    )
   }
 }
 
-export default ErrorBoundary;
+export default ErrorBoundary

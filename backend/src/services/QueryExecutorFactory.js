@@ -294,7 +294,26 @@ class QueryExecutorFactory {
     )
     return result.rows
   }
+
+  async publishRow(tableName, id) {
+    const result = await client.query(
+      'SELECT agile_cms.publish_content_type_row($1, $2)',
+      [tableName, id]
+    )
+    return result.rows[0]?.publish_content_type_row === true
+  }
+
+  async getPublishedData(tableName) {
+    const result = await client.query(
+      'SELECT agile_cms.get_collection_by_status($1, $2)',
+      [tableName, 'published']
+    )
+    return result.rows[0].get_collection_by_status
+  }
 }
+
+
+
 
 // Export a single instance
 const queryExecutor = new QueryExecutorFactory()

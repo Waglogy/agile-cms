@@ -272,3 +272,40 @@ export async function alterCollection(req, res, next) {
     return next(new AppError(500, 'Failed to alter table', err))
   }
 }
+
+export async function publishData(req, res, next) {
+  const { tableName, id } = req.body
+
+  if (!tableName || !id) {
+    return next(new AppError(400, 'Missing tableName or id'))
+  }
+
+  try {
+    const success = await queryExecutor.publishRow(tableName, id)
+
+    return res.json({
+      status: success,
+      message: success
+        ? 'Row published successfully'
+        : 'Publishing failed or no update made',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to publish data', err))
+  }
+}
+
+export async function getPublishedContent(req, res, next) {
+  const { tableName } = req.params
+  if (!tableName) return next(new AppError(400, 'Table name is required'))
+
+  try {
+    const data = await queryExecutor.getPublishedData(tableName)
+    return res.json({
+      status: true,
+      message: 'Published content retrieved',
+      data,
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to fetch published data', err))
+  }
+}

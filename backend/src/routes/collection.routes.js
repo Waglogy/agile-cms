@@ -10,6 +10,8 @@ import {
   getCollectionData,
   insertData,
   updateData,
+  publishData,
+  getPublishedContent,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 
@@ -125,5 +127,10 @@ collectionRouter.post('/attribute/delete', deleteAttributeFromCollection)
  ** Get all data from a specific collection
  */
 collectionRouter.get('/data/:tableName', getCollectionData)
+
+
+collectionRouter.post('/publish', publishData)
+collectionRouter.get('/published/:tableName', getPublishedContent)
+
 
 export default collectionRouter

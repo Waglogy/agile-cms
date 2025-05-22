@@ -1,74 +1,51 @@
-/* eslint-disable no-unused-vars */
-import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
-import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import DashboardLayout from './areas/common/DashboardLayout'
+import AdminDashboard from './areas/content-admin/Dashboard'
+import CreateTable from './areas/content-admin/CreateTable'
+import TableManager from './areas/content-admin/TableManager'
 
-import DesktopOnlyRoute from "./areas/DesktopOnlyRoute";
-
-import SelectDb from "./areas/public/pages/selectDb.component";
-
-import SystemAdminDashboard from "./areas/admin/system-admin/SystemAdminDashboard";
-import CreateTableComponent from "./areas/admin/system-admin/modules/TableCreation/createTable.component";
-import UpdateTableComponent from "./areas/admin/system-admin/modules/TableUpdate/updateTablecomponent";
-import ContentAdminDashboard from "./areas/admin/content-admin/ContentAdminDashboard";
-import AddContent from "./areas/admin/content-admin/components/AddContent";
-import Contents from "./areas/admin/content-admin/components/Contents";
-import ViewUpdate from "./areas/admin/content-admin/components/ViewUpdate";
+// ✅ Mock table data for TableManager
+const mockTables = [
+  {
+    name: 'Physics MCQs',
+    fields: [
+      { name: 'question', type: 'text' },
+      { name: 'difficulty', type: 'number' },
+    ],
+  },
+  {
+    name: 'History Archive',
+    fields: [
+      { name: 'image', type: 'image' },
+      { name: 'description', type: 'text' },
+    ],
+  },
+]
 
 function App() {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }, [pathname]);
-
   return (
-    <>
+    <BrowserRouter>
       <Routes>
-        <Route exact path="/" element={<SelectDb />} />
-
-        {/* System Admin */}
-        <Route
-          exact
-          path="/system-admin/dashboard"
-          element={
-            <DesktopOnlyRoute>
-              <SystemAdminDashboard />
-            </DesktopOnlyRoute>
-          }
-        />
-        <Route
-          path="/system-admin/modules/table-creation"
-          element={<CreateTableComponent />}
-        />
-        <Route
-          path="/system-admin/modules/table-update"
-          element={
-            <DesktopOnlyRoute>
-              <UpdateTableComponent />
-            </DesktopOnlyRoute>
-          }
-        />
-
-        {/* Content Admin */}
-        <Route
-          path="/content-admin"
-          element={
-            <DesktopOnlyRoute>
-              <ContentAdminDashboard />
-            </DesktopOnlyRoute>
-          }
-        >
-          <Route path="add" element={<AddContent />} />
-          <Route path="contents" element={<Contents />} />
-          <Route path="view-update" element={<ViewUpdate />} />
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<Navigate to="/dashboard" />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="create-table" element={<CreateTable  />} />
+          <Route
+            path="manage-tables"
+            element={
+              <TableManager
+                tables={mockTables}
+                onUpdate={(updatedTable) => {
+                  console.log('Updated table:', updatedTable)
+                  // Here you'd call your update API
+                }}
+              />
+            }
+          />
         </Route>
       </Routes>
-    </>
-  );
+    </BrowserRouter>
+  )
 }
 
-export default App;
+export default App
