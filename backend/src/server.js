@@ -1,22 +1,19 @@
 import app from './app.js'
-// import process from 'process'
 import envConfig from './config/env.config.js'
 import initializeDatabase from './services/initializeDatabase.js'
+import http from 'http'
+
+const PORT = envConfig.PORT ?? 3000
 
 initializeDatabase('music')
   .then(() => {
-    console.log('Everything Is running as expected 😏')
-    app.listen(envConfig.PORT ?? 3000, () => {
-      console.log('App Sterted Successfully')
-      console.log(`End Point: http://localhost:${envConfig.PORT ?? 3000}`)
+    const server = http.createServer({ maxHeaderSize: 65536 }, app) // 64kb header size
+    server.listen(PORT, () => {
+      console.log('App started successfully 🎉')
+      console.log(`Endpoint: http://localhost:${PORT}`)
     })
   })
   .catch((err) => {
-    console.error(err)
+    console.error('Database initialization error:', err)
     process.exit(1)
   })
-
-app.listen(envConfig.PORT ?? 8000, () => {
-  console.log('App Sterted Successfully')
-  console.log(`End Point: http://localhost:${envConfig.PORT ?? 3000}`)
-})
