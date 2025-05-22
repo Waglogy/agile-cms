@@ -12,8 +12,6 @@ class QueryExecutorFactory {
   }
 
   async createCollection(tableName, schema) {
-    // await client.connect()
-    // console.log(object)
     const result = await client.query('SELECT create_content_type($1, $2)', [
       tableName,
       schema,
@@ -30,8 +28,6 @@ class QueryExecutorFactory {
       [tableName, data]
     )
 
-    console.log(result)
-
     return result.rows[0].insert_into_content_type
   }
 
@@ -40,7 +36,6 @@ class QueryExecutorFactory {
       'SELECT update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
-    console.log(result)
 
     return result.rows[0].update_content_type_data
   }
@@ -93,12 +88,9 @@ class QueryExecutorFactory {
   }
 
   async getCollectionByName(tableName) {
-    const result = await client.query(
-      'SELECT agile_cms.get_collection_by_name($1)',
-      [tableName]
-    )
-
-    console.log(result)
+    const result = await client.query('SELECT get_collection_by_name($1)', [
+      tableName,
+    ])
 
     return result.rows[0].get_collection_by_name
   }
@@ -116,6 +108,21 @@ class QueryExecutorFactory {
       tableName,
     ])
     return result.rows[0].get_collection_data
+  }
+
+  async getCollectionDataWithImages(tableName) {
+    const result = await client.query(`
+    SELECT 
+      test.*,
+      img.*,
+      json_agg(img_gal.*) AS image_galleries
+    FROM agile_cms.${tableName} AS test
+    JOIN agile_cms.images AS img ON test.id = img.image_id
+    JOIN agile_cms.image_galleries AS img_gal ON img.image_id = img_gal.image_id
+    GROUP BY test.id, img.image_id
+  `)
+
+    return result.rows
   }
 
   // ***********************USEERRRRR METHODS*****************************

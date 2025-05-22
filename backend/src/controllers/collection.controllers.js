@@ -70,10 +70,12 @@ export async function getCollectionByName(req, res, next) {
 
   try {
     const collection = await queryExecutor.getCollectionByName(tableName)
+    const meta_data = await queryExecutor.getTableMetadata(tableName)
     return res.json({
       status: true,
       message: 'Collection retrieved successfully',
       data: collection,
+      meta_data,
     })
   } catch (err) {
     return next(new AppError(500, 'Failed to fetch collection', err))
@@ -107,13 +109,21 @@ export async function deleteAttributeFromCollection(req, res, next) {
 // Retrieve data from a specific collection
 export async function getCollectionData(req, res, next) {
   const { tableName } = req.params
+  const { files } = req.query
 
   if (!tableName) {
     return next(new AppError(400, 'Table name is required'))
   }
 
   try {
-    const data = await queryExecutor.getCollectionData(tableName)
+    let data
+
+    if (files === 'true') {
+      data = await queryExecutor.getCollectionDataWithImages(tableName)
+    } else {
+      data = await queryExecutor.getCollectionData(tableName)
+    }
+
     return res.json({
       status: true,
       message: 'Data retrieved successfully',
@@ -170,8 +180,6 @@ export async function insertData(req, res, next) {
       'Test Description'
     )
 
-    console.log(result)
-
     for (const container of uploadResults) {
       await queryExecutor.createImageGallery(
         result.image_id, // /* parentId:  */ newRecordId,
@@ -179,21 +187,15 @@ export async function insertData(req, res, next) {
       )
     }
 
-    console.log(collectionName)
-
-    const resu = await queryExecutor.updateData(collectionName, newRecordId, {
+    await queryExecutor.updateData(collectionName, newRecordId, {
       images: result.image_id,
     })
-
-    console.log(resu)
 
     /* await queryExecutor.updateData(
       collectionName,
       newRecordId,
       { images: uploadResults[0] } // first (and only) container
     ) */
-
-    console.log(newRecordId)
 
     // 8) respond
     return res.json({

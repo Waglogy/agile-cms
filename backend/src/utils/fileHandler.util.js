@@ -7,17 +7,13 @@ import sharp from 'sharp'
  * @returns {Promise<Array<object>>} an array of image‐container JSONs
  */
 export const imageUploader = async (files) => {
-  // 1) ensure upload directory
   const uploadDir = path.join('uploads', 'converted', Date.now().toString())
   fs.mkdirSync(uploadDir, { recursive: true })
 
-  // 2) define your sizes
   const sizes = { large: 1200, medium: 800, thumb: 300 }
 
-  // 3) process each file in parallel
   const containers = await Promise.all(
     files.map(async ({ path: src, filename }) => {
-      // resize each variant
       await Promise.all(
         Object.entries(sizes).map(([label, width]) =>
           sharp(src)
@@ -27,17 +23,16 @@ export const imageUploader = async (files) => {
         )
       )
 
-      // remove the original upload
       fs.unlinkSync(src)
 
-      // build and return the JSON‐friendly container
       return Object.fromEntries(
         Object.keys(sizes).map((label) => {
           const filePath = `/uploads/converted/${path.basename(uploadDir)}/${label}-${filename}.webp`
-          const base64 = fs.readFileSync(
+          const base64Raw = fs.readFileSync(
             path.join(uploadDir, `${label}-${filename}.webp`),
-            { encoding: 'base64url' }
+            { encoding: 'base64' }
           )
+          const base64 = `data:image/webp;base64,${base64Raw}`
           return [label, { imagePath: filePath, base64 }]
         })
       )
