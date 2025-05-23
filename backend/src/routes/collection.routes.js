@@ -12,6 +12,7 @@ import {
   updateData,
   publishData,
   getPublishedContent,
+  getSystemLogs,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 
@@ -128,9 +129,8 @@ collectionRouter.post('/attribute/delete', deleteAttributeFromCollection)
  */
 collectionRouter.get('/data/:tableName', getCollectionData)
 
-
 collectionRouter.post('/publish', publishData)
 collectionRouter.get('/published/:tableName', getPublishedContent)
-
+collectionRouter.get('/logs/system-logs', getSystemLogs)
 
 export default collectionRouter

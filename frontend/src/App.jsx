@@ -3,7 +3,7 @@ import DashboardLayout from './areas/common/DashboardLayout'
 import AdminDashboard from './areas/content-admin/Dashboard'
 import CreateTable from './areas/content-admin/CreateTable'
 import TableManager from './areas/content-admin/TableManager'
-
+import ActivityLogs from './areas/content-admin/SystemLogs'
 // ✅ Mock table data for TableManager
 const mockTables = [
   {
@@ -30,6 +30,7 @@ function App() {
           <Route index element={<Navigate to="/dashboard" />} />
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="create-table" element={<CreateTable  />} />
+          <Route path="activity-logs" element={<ActivityLogs/>} />
           <Route
             path="manage-tables"
             element={

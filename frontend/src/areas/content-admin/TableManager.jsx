@@ -18,30 +18,32 @@ const TableManager = () => {
     fetchTables()
   }, [])
 
- const fetchTables = async () => {
-   try {
-     const response = await getAllCollections()
-     const collectionList = response.data?.data
+  const fetchTables = async () => {
+    try {
+      const response = await getAllCollections()
+      const collectionList = response.data?.data?.get_all_collections
 
-     if (!Array.isArray(collectionList)) {
-       showAppMessage('No collections found or invalid response', 'error')
-       return
-     }
+      console.log('Tables:', collectionList) // for debugging
 
-     const mapped = collectionList.map((table) => ({
-       name: table.collection_name,
-       fields: table.columns.map((col) => ({
-         name: col.column_name,
-         type: col.data_type,
-       })),
-     }))
+      if (!Array.isArray(collectionList)) {
+        showAppMessage('No collections found or invalid response', 'error')
+        return
+      }
 
-     setTables(mapped)
-   } catch (err) {
-     console.error(err)
-     showAppMessage('Failed to load tables', 'error')
-   }
- }
+      const mapped = collectionList.map((table) => ({
+        name: table.collection_name,
+        fields: table.columns.map((col) => ({
+          name: col.column_name,
+          type: col.data_type,
+        })),
+      }))
+
+      setTables(mapped)
+    } catch (err) {
+      console.error(err)
+      showAppMessage('Failed to load tables', 'error')
+    }
+  }
 
 
 

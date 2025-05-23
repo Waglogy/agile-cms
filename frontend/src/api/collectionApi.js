@@ -18,6 +18,11 @@ export const getAllCollections = async () => {
   return axios.get(`${API_BASE_URL}`)
 }
 
+export const fetchLogs = async () => {
+  const res = await axios.get(`${API_BASE_URL}/logs`)
+  return res.data
+}
+
 // ✅ Dynamic GET for specific collection data
 export const getCollectionData = async (tableName) => {
   return axios.get(`${API_BASE_URL}/data/${tableName}`)

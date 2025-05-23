@@ -16,19 +16,22 @@ class QueryExecutorFactory {
       tableName,
       schema,
     ])
+    await this.insertLogEntry('create_table', 'system', tableName, null, {
+      schema,
+    })
     return result.rows[0].create_content_type
   }
 
   async insertData(tableName, data) {
-    // Object.values(data).forEach((val) => {
-    //   if(typeof val )
-    // })
     const result = await client.query(
       'SELECT insert_into_content_type($1, $2)',
       [tableName, data]
     )
-
-    return result.rows[0].insert_into_content_type
+    const inserted = result.rows[0].insert_into_content_type
+    await this.insertLogEntry('create_row', 'system', tableName, inserted.id, {
+      data,
+    })
+    return inserted
   }
 
   async updateData(tableName, id, updateData) {
@@ -36,7 +39,9 @@ class QueryExecutorFactory {
       'SELECT update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
-
+    await this.insertLogEntry('update_row', 'system', tableName, id, {
+      updateData,
+    })
     return result.rows[0].update_content_type_data
   }
 
@@ -45,6 +50,7 @@ class QueryExecutorFactory {
       'SELECT delete_content_type_data($1, $2)',
       [tableName, id]
     )
+    await this.insertLogEntry('delete_row', 'system', tableName, id)
     return result.rows[0].delete_content_type_data
   }
 
@@ -52,9 +58,12 @@ class QueryExecutorFactory {
     const result = await client.query('SELECT * FROM delete_collection($1)', [
       tableName,
     ])
-
     const { success, message } = result.rows[0]
-
+    if (success) {
+      await this.insertLogEntry('delete_table', 'system', tableName, null, {
+        message,
+      })
+    }
     return { success, message }
   }
 
@@ -130,6 +139,20 @@ class QueryExecutorFactory {
   // *********************************************************************
   // *********************************************************************
   // *********************************************************************
+
+  async insertLogEntry(
+    actionType,
+    userEmail,
+    tableName,
+    recordId,
+    details = {}
+  ) {
+    await client.query(
+      'SELECT agile_cms.insert_log_entry($1, $2, $3, $4, $5)',
+      [actionType, userEmail, tableName, recordId, details]
+    )
+  }
+
   async registerUser(email, password, role) {
     const result = await client.query('SELECT register_user($1, $2, $3)', [
       email,
@@ -317,7 +340,15 @@ class QueryExecutorFactory {
     )
     return result.rows[0].get_collection_by_status
   }
+
+  async getSystemLogs() {
+    const result = await client.query(`
+    SELECT * FROM agile_cms.logs ORDER BY created_at DESC
+  `)
+    return result.rows
+  }
 }
+
 
 
 

@@ -3,7 +3,7 @@ import envConfig from './config/env.config.js'
 import initializeDatabase from './services/initializeDatabase.js'
 import http from 'http'
 
-const PORT = envConfig.PORT ?? 3000
+const PORT = envConfig.PORT ?? 8000
 
 initializeDatabase('music')
   .then(() => {

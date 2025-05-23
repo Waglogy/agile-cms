@@ -1,5 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { LayoutDashboard, Users, Settings, Table } from 'lucide-react' // added Table icon
+import {
+  LayoutDashboard,
+  Users,
+  Settings,
+  Table,
+  FileText,
+  Wrench,
+} from 'lucide-react' // added Table icon
 
 const Sidebar = ({ mobile }) => {
   const { pathname } = useLocation()
@@ -10,9 +17,13 @@ const Sidebar = ({ mobile }) => {
       label: 'Dashboard',
       icon: <LayoutDashboard size={18} />,
     },
-    { to: '/create-table', label: 'Create Table', icon: <Table size={18} /> }, 
-    { to: '/manage-tables', label: 'Manage Tables', icon: <Table size={18} /> },
-    { to: '/users', label: 'Users', icon: <Users size={18} /> },
+    { to: '/create-table', label: 'Create Table', icon: <Table size={18} /> },
+    {
+      to: '/manage-tables',
+      label: 'Manage Tables',
+      icon: <Wrench size={18} />,
+    },
+    { to: '/activity-logs', label: 'Logs', icon: <FileText size={18} /> },
     { to: '/settings', label: 'Settings', icon: <Settings size={18} /> },
   ]
 

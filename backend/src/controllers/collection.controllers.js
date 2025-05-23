@@ -16,6 +16,15 @@ export async function createTable(req, res, next) {
       validation.value.tableName,
       validation.value.schema
     )
+
+    await queryExecutor.insertLogEntry(
+      'create_collection',
+      req.user?.email || 'system',
+      validation.value.tableName,
+      null,
+      validation.value.schema
+    )
+
     return res.json({
       status: success,
       message: success ? 'Table created successfully' : 'Table creation failed',
@@ -35,6 +44,22 @@ export async function deleteCollection(req, res, next) {
 
   try {
     const success = await queryExecutor.deleteCollection(collectionName)
+    await queryExecutor.insertLogEntry(
+      'delete_collection',
+      req.user?.email || 'system',
+      collectionName,
+      null,
+      {}
+    )
+
+    await queryExecutor.insertLogEntry(
+      'delete_collection',
+      req.user?.email || 'system',
+      collectionName,
+      null,
+      {}
+    )
+
     return res.json({
       status: success,
       message: success
@@ -190,6 +215,14 @@ export async function insertData(req, res, next) {
     await queryExecutor.updateData(collectionName, newRecordId, {
       images: result.image_id,
     })
+      await queryExecutor.insertLogEntry(
+        'insert_row',
+        req.user?.email || 'system',
+        collectionName,
+        newRecordId,
+        payload
+      )
+
 
     /* await queryExecutor.updateData(
       collectionName,
@@ -221,6 +254,14 @@ export async function updateData(req, res, next) {
       validation.value.id,
       validation.value.updateData
     )
+    await queryExecutor.insertLogEntry(
+      'update_row',
+      req.user?.email || 'system',
+      validation.value.tableName,
+      validation.value.id,
+      validation.value.updateData
+    )
+
     return res.json({
       status: success,
       message: success ? 'Data updated successfully' : 'Data update failed',
@@ -241,6 +282,14 @@ export async function deleteData(req, res, next) {
       validation.value.tableName,
       validation.value.id
     )
+    await queryExecutor.insertLogEntry(
+      'delete_row',
+      req.user?.email || 'system',
+      validation.value.tableName,
+      validation.value.id,
+      {}
+    )
+
     return res.json({
       status: success,
       message: success ? 'Data deleted successfully' : 'Data deletion failed',
@@ -264,6 +313,18 @@ export async function alterCollection(req, res, next) {
       validation.value.columnType,
       validation.value.constraints || ''
     )
+    await queryExecutor.insertLogEntry(
+      'alter_collection',
+      req.user?.email || 'system',
+      validation.value.tableName,
+      null,
+      {
+        columnName: validation.value.columnName,
+        columnType: validation.value.columnType,
+        constraints: validation.value.constraints || '',
+      }
+    )
+
     return res.json({
       status: success,
       message: success
@@ -284,6 +345,13 @@ export async function publishData(req, res, next) {
 
   try {
     const success = await queryExecutor.publishRow(tableName, id)
+  await queryExecutor.insertLogEntry(
+    'publish_row',
+    req.user?.email || 'system',
+    tableName,
+    id,
+    {}
+  )
 
     return res.json({
       status: success,
@@ -311,3 +379,20 @@ export async function getPublishedContent(req, res, next) {
     return next(new AppError(500, 'Failed to fetch published data', err))
   }
 }
+
+export async function getSystemLogs(req, res, next) {
+  try {
+    const logs = await queryExecutor.getSystemLogs()
+    return res.json({
+      status: true,
+      message: 'Logs retrieved successfully',
+      data: logs,
+    })
+  } catch (err) {
+    console.error(err)
+    return next(new AppError(500, 'Failed to fetch logs', err))
+  }
+}
+
+
+

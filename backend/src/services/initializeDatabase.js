@@ -75,6 +75,45 @@ async function initializeDatabase(db_name) {
 
     // ✅ Enable pgcrypto extension
     await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`)
+    // ✅ Create logs table
+    await client.query(`
+  CREATE TABLE IF NOT EXISTS agile_cms.logs (
+    id SERIAL PRIMARY KEY,
+    action_type TEXT NOT NULL, -- 'create', 'edit', 'delete'
+    user_email TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id INT,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`)
+
+    // ✅ Add column comments to logs table
+    await client.query(`
+  COMMENT ON COLUMN agile_cms.logs.id IS 'Primary key for the log entry';
+  COMMENT ON COLUMN agile_cms.logs.action_type IS 'Type of action (create, edit, delete)';
+  COMMENT ON COLUMN agile_cms.logs.user_email IS 'Email of the user who performed the action';
+  COMMENT ON COLUMN agile_cms.logs.table_name IS 'Name of the affected table';
+  COMMENT ON COLUMN agile_cms.logs.record_id IS 'ID of the affected record';
+  COMMENT ON COLUMN agile_cms.logs.details IS 'Additional JSONB details about the action';
+  COMMENT ON COLUMN agile_cms.logs.created_at IS 'Timestamp when the action occurred';
+`)
+
+    // ✅ Log insertion function
+    await client.query(`
+  CREATE OR REPLACE FUNCTION agile_cms.insert_log_entry(
+    p_action_type TEXT,
+    p_user_email TEXT,
+    p_table_name TEXT,
+    p_record_id INT,
+    p_details JSONB
+  ) RETURNS VOID AS $$
+  BEGIN
+    INSERT INTO agile_cms.logs(action_type, user_email, table_name, record_id, details)
+    VALUES (p_action_type, p_user_email, p_table_name, p_record_id, p_details);
+  END;
+  $$ LANGUAGE plpgsql;
+`)
 
     // ✅ Create Tables
     await client.query(`
