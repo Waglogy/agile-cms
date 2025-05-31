@@ -204,6 +204,71 @@ $$ LANGUAGE plpgsql;
 `)
 
     // alter dynamic table or collection
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.alter_content_type(
+  p_action TEXT,
+  p_table_name TEXT,
+  p_column_name TEXT DEFAULT NULL,
+  p_column_type TEXT DEFAULT NULL,
+  p_constraints TEXT DEFAULT NULL,
+  p_new_name TEXT DEFAULT NULL,
+  p_comment TEXT DEFAULT NULL
+) RETURNS TEXT AS $$
+BEGIN
+  IF p_action = 'add' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I ADD COLUMN IF NOT EXISTS %I %s %s',
+      p_table_name, p_column_name, p_column_type, COALESCE(p_constraints, '')
+    );
+
+    IF p_comment IS NOT NULL THEN
+      EXECUTE format(
+        'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
+        p_table_name, p_column_name, p_comment
+      );
+    END IF;
+
+    RETURN 'Column added';
+
+  ELSIF p_action = 'drop' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I DROP COLUMN IF EXISTS %I',
+      p_table_name, p_column_name
+    );
+    RETURN 'Column dropped';
+
+  ELSIF p_action = 'rename' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I RENAME COLUMN %I TO %I',
+      p_table_name, p_column_name, p_new_name
+    );
+    RETURN 'Column renamed';
+
+  ELSIF p_action = 'type' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I ALTER COLUMN %I TYPE %s %s',
+      p_table_name, p_column_name, p_column_type, COALESCE(p_constraints, '')
+    );
+    RETURN 'Column type changed';
+
+  ELSIF p_action = 'comment' THEN
+    EXECUTE format(
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
+      p_table_name, p_column_name, p_comment
+    );
+    RETURN 'Comment added';
+
+  ELSE
+    RETURN 'Invalid action';
+  END IF;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error: %', SQLERRM;
+    RETURN 'Failed: ' || SQLERRM;
+END;
+$$ LANGUAGE plpgsql;
+
+`)
+
     await client.query(`
       CREATE OR REPLACE FUNCTION agile_cms.create_content_type(
   tbl_name   TEXT,

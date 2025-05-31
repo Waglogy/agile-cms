@@ -98,7 +98,7 @@ collectionRouter.post('/delete', deleteData)
 }
 */
 
-collectionRouter.post('/alter', alterCollection)
+collectionRouter.post('/alter/column', alterCollection)
 
 /**
 {

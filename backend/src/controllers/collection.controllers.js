@@ -303,38 +303,55 @@ export async function deleteData(req, res, next) {
 export async function alterCollection(req, res, next) {
   const validation = joiValidator(collectionValidation.alterCollection, req)
 
-  if (!validation.success)
+  if (!validation.success) {
     return next(new AppError(400, 'Validation failed', validation.errors))
+  }
+
+  const {
+    action,
+    tableName,
+    columnName,
+    columnType,
+    constraints,
+    newName,
+    comment,
+  } = validation.value
 
   try {
-    const success = await queryExecutor.alterCollection(
-      validation.value.tableName,
-      validation.value.columnName,
-      validation.value.columnType,
-      validation.value.constraints || ''
-    )
+    const result = await queryExecutor.alterCollectionSmart({
+      action,
+      tableName,
+      columnName,
+      columnType,
+      constraints,
+      newName,
+      comment,
+    })
+
     await queryExecutor.insertLogEntry(
       'alter_collection',
       req.user?.email || 'system',
-      validation.value.tableName,
+      tableName,
       null,
       {
-        columnName: validation.value.columnName,
-        columnType: validation.value.columnType,
-        constraints: validation.value.constraints || '',
+        action,
+        columnName,
+        columnType,
+        constraints,
+        newName,
+        comment,
       }
     )
 
     return res.json({
-      status: success,
-      message: success
-        ? 'Table altered successfully'
-        : 'Table alteration failed',
+      status: true,
+      message: result.message,
     })
   } catch (err) {
     return next(new AppError(500, 'Failed to alter table', err))
   }
 }
+
 
 export async function publishData(req, res, next) {
   const { tableName, id } = req.body

@@ -72,12 +72,26 @@ class QueryExecutorFactory {
     return result.rows[0]
   }
 
-  async alterCollection(tableName, columnName, columnType, constraints = '') {
+  async alterCollectionSmart(payload) {
+    const {
+      action,
+      tableName,
+      columnName,
+      columnType,
+      constraints,
+      newName,
+      comment,
+    } = payload
+
     const result = await client.query(
-      'SELECT alter_content_type($1, $2, $3, $4)',
-      [tableName, columnName, columnType, constraints]
+      `SELECT agile_cms.alter_content_type(
+      $1::text, $2::text, $3::text, $4::text,
+      $5::text, $6::text, $7::text
+    ) AS message`,
+      [action, tableName, columnName, columnType, constraints, newName, comment]
     )
-    return result.rows[0].alter_content_type
+
+    return { message: result.rows[0].message }
   }
 
   async registerSuperAdmin(first_name, last_name, email, password) {
