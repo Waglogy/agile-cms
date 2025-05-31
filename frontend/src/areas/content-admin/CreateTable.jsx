@@ -6,8 +6,25 @@ import { useNotification } from '../../context/NotificationContext'
 
 const fieldTypes = ['text', 'number', 'date', 'image', 'boolean']
 
+const getPostgresType = (type) => {
+  switch (type) {
+    case 'text':
+      return 'TEXT'
+    case 'number':
+      return 'INTEGER' // or use 'NUMERIC' if you expect decimals
+    case 'date':
+      return 'DATE'
+    case 'image':
+      return 'JSONB'
+    case 'boolean':
+      return 'BOOLEAN'
+    default:
+      return 'TEXT'
+  }
+}
+
 const CreateTableForm = () => {
-const { showAppMessage } = useNotification()
+  const { showAppMessage } = useNotification()
 
   const [tableName, setTableName] = useState('')
   const [fields, setFields] = useState([
@@ -40,7 +57,7 @@ const { showAppMessage } = useNotification()
     const schema = {}
     fields.forEach(({ name, type, isMultiple }) => {
       schema[name] = {
-        type: type === 'image' ? 'JSONB' : type.toUpperCase(),
+        type: getPostgresType(type),
         constraints: '',
         is_multiple: isMultiple,
       }
@@ -182,7 +199,7 @@ const { showAppMessage } = useNotification()
       </div>
 
       {showSuccessPopup && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+        <div className="absolute inset-0 bg-[#fefce8] bg-opacity-50 flex items-center justify-center z-10">
           <div className="bg-white p-6 rounded-xl shadow-lg text-center">
             <h3 className="text-lg font-semibold text-green-600 mb-2">
               Table Created Successfully

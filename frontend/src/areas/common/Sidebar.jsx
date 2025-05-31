@@ -6,6 +6,8 @@ import {
   Table,
   FileText,
   Wrench,
+  PlusSquare,
+  Eye,
 } from 'lucide-react' // added Table icon
 
 const Sidebar = ({ mobile }) => {
@@ -15,16 +17,17 @@ const Sidebar = ({ mobile }) => {
     {
       to: '/dashboard',
       label: 'Dashboard',
-      icon: <LayoutDashboard size={18} />,
+      icon: <LayoutDashboard size={28} />,
     },
-    { to: '/create-table', label: 'Create Table', icon: <Table size={18} /> },
+    { to: '/create-table', label: 'Create Table', icon: <Table size={28} /> },
     {
       to: '/manage-tables',
       label: 'Manage Tables',
-      icon: <Wrench size={18} />,
+      icon: <Wrench size={28} />,
     },
-    { to: '/activity-logs', label: 'Logs', icon: <FileText size={18} /> },
-    { to: '/settings', label: 'Settings', icon: <Settings size={18} /> },
+    { to: '/activity-logs', label: 'Logs', icon: <FileText size={28} /> },
+    { to: '/insert-data', label: 'Add data', icon: <PlusSquare size={28} /> },
+    { to: '/collection-view', label: 'Show Tables', icon: <Eye size={28} /> },
   ]
 
   return (

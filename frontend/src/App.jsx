@@ -4,6 +4,8 @@ import AdminDashboard from './areas/content-admin/Dashboard'
 import CreateTable from './areas/content-admin/CreateTable'
 import TableManager from './areas/content-admin/TableManager'
 import ActivityLogs from './areas/content-admin/SystemLogs'
+import InsertRecordForm from './areas/common/InsertRecordForm'
+import CollectionViewer from './areas/common/CollectionViewer'
 // ✅ Mock table data for TableManager
 const mockTables = [
   {
@@ -31,6 +33,8 @@ function App() {
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="create-table" element={<CreateTable  />} />
           <Route path="activity-logs" element={<ActivityLogs/>} />
+          <Route path="insert-data" element={<InsertRecordForm/>}/>
+          <Route path="collection-view" element={<CollectionViewer/>}/>
           <Route
             path="manage-tables"
             element={
