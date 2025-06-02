@@ -6,7 +6,7 @@ import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 
 /**
- * Renders one collection’s data: search + paginated table.
+ * Renders one collection’s data: search + paginated table + CSV export.
  */
 const CollectionTable = ({ name, records }) => {
   const ITEMS_PER_PAGE = 5
@@ -61,12 +61,53 @@ const CollectionTable = ({ name, records }) => {
   // Determine column headers from the first record
   const columns = Object.keys(records[0])
 
+  // Generate CSV string from all records (not paginated)
+  const generateCSV = () => {
+    if (records.length === 0) return ''
+
+    // Helper to escape a single cell:
+    const escapeCell = (cell) => {
+      const str = cleanValue(cell)
+      // If the string contains comma, quote or newline, wrap in double quotes and escape existing quotes
+      if (/[,"\n\r]/.test(str)) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    // Build header row
+    const header = columns.map((col) => escapeCell(col)).join(',')
+
+    // Build body rows
+    const rows = records.map((row) =>
+      columns.map((col) => escapeCell(row[col])).join(',')
+    )
+
+    return [header, ...rows].join('\r\n')
+  }
+
+  // Trigger download of the CSV file
+  const handleExport = () => {
+    const csvContent = generateCSV()
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    // Filename: collection name plus timestamp
+    const timestamp = new Date().toISOString().replace(/[:.-]/g, '')
+    link.setAttribute('download', `${name}_export_${timestamp}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div className="mb-8">
       <h3 className="text-lg font-semibold mb-2">{name}</h3>
 
-      {/* Search box for rows */}
-      <div className="mb-4">
+      {/* Search box + Export button */}
+      <div className="flex items-center justify-between mb-4">
         <input
           type="text"
           value={searchTerm}
@@ -75,8 +116,14 @@ const CollectionTable = ({ name, records }) => {
             setCurrentPage(1)
           }}
           placeholder="Search rows..."
-          className="w-full px-3 py-2 border rounded-md"
+          className="w-2/3 px-3 py-2 border rounded-md"
         />
+        <button
+          onClick={handleExport}
+          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+        >
+          Export CSV
+        </button>
       </div>
 
       {/* Table */}
@@ -135,13 +182,13 @@ const CollectionTable = ({ name, records }) => {
                 key={pageNum}
                 onClick={() => setCurrentPage(pageNum)}
                 className={`
-                px-3 py-1 rounded-md text-sm
-                ${
-                  pageNum === currentPage
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
-                }
-              `}
+                  px-3 py-1 rounded-md text-sm
+                  ${
+                    pageNum === currentPage
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  }
+                `}
               >
                 {pageNum}
               </button>
@@ -308,13 +355,13 @@ const CollectionViewer = () => {
                     key={pageNum}
                     onClick={() => setCurrentPage(pageNum)}
                     className={`
-                    px-3 py-1 rounded-md text-sm
-                    ${
-                      pageNum === currentPage
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
-                    }
-                  `}
+                      px-3 py-1 rounded-md text-sm
+                      ${
+                        pageNum === currentPage
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      }
+                    `}
                   >
                     {pageNum}
                   </button>
