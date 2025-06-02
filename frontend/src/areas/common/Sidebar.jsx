@@ -8,6 +8,7 @@ import {
   Wrench,
   PlusSquare,
   Eye,
+  Code,
 } from 'lucide-react' // added Table icon
 
 const Sidebar = ({ mobile }) => {
@@ -22,12 +23,14 @@ const Sidebar = ({ mobile }) => {
     { to: '/create-table', label: 'Create Table', icon: <Table size={28} /> },
     {
       to: '/manage-tables',
+
       label: 'Manage Tables',
       icon: <Wrench size={28} />,
     },
     { to: '/activity-logs', label: 'Logs', icon: <FileText size={28} /> },
     { to: '/insert-data', label: 'Add data', icon: <PlusSquare size={28} /> },
     { to: '/collection-view', label: 'Show Tables', icon: <Eye size={28} /> },
+    { to: '/your-apis', label: 'Your APIs', icon: <Code size={28} /> },
   ]
 
   return (
@@ -37,7 +40,7 @@ const Sidebar = ({ mobile }) => {
       }`}
     >
       <div className="text-[#fefefe] text-2xl font-bold mb-6 px-2 tracking-tight">
-        Agile CMS
+        Agile CMS – Build, Edit, Publish… Faster
       </div>
       <nav className="flex flex-col space-y-1 text-sm">
         {navItems.map(({ to, label, icon }) => {

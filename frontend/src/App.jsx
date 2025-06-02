@@ -6,6 +6,7 @@ import TableManager from './areas/content-admin/TableManager'
 import ActivityLogs from './areas/content-admin/SystemLogs'
 import InsertRecordForm from './areas/common/InsertRecordForm'
 import CollectionViewer from './areas/common/CollectionViewer'
+import YourAPIs from './areas/content-admin/YourAPIs'
 // ✅ Mock table data for TableManager
 const mockTables = [
   {
@@ -35,6 +36,7 @@ function App() {
           <Route path="activity-logs" element={<ActivityLogs/>} />
           <Route path="insert-data" element={<InsertRecordForm/>}/>
           <Route path="collection-view" element={<CollectionViewer/>}/>
+          <Route path="your-apis" element={<YourAPIs/>}/>
           <Route
             path="manage-tables"
             element={

@@ -1,6 +1,7 @@
 // Header.js (imports)
 import { Menu } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
+import logo from '../../assets/bbLogo.png'
 
 const Header = ({ toggleSidebar }) => {
   const mockNotifications = [
@@ -20,7 +21,7 @@ const Header = ({ toggleSidebar }) => {
             <Menu size={24} />
           </button>
           <h1 className="text-xl font-bold text-[#d90429] tracking-tight">
-            Agile CMS
+            <img src={logo} alt="Agile CMS" className="w-40 h-10" />
           </h1>
         </div>
 
