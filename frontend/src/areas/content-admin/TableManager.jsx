@@ -146,28 +146,31 @@ const TableManager = () => {
       showAppMessage('Failed to alter table', 'error')
     }
   }
-const handleDeleteTable = async (collectionName) => {
-  const confirmed = window.confirm(
-    `Are you sure you want to delete the collection "${collectionName}"?`
-  )
-  if (!confirmed) return
+  const handleDeleteTable = async (collectionName) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete the collection "${collectionName}"?`
+    )
+    if (!confirmed) return
 
-  try {
-    const res = await deleteCollection(collectionName)
-    if (res.data.success) {
-      showAppMessage(`Collection "${collectionName}" deleted`, 'success')
-      fetchTables()
-    } else {
-      showAppMessage(res.data.message || 'Failed to delete collection', 'error')
+    try {
+      const res = await deleteCollection(collectionName)
+      if (res.data.success) {
+        showAppMessage(`Collection "${collectionName}" deleted`, 'success')
+        fetchTables()
+      } else {
+        showAppMessage(
+          res.data.message || 'Failed to delete collection',
+          'error'
+        )
+      }
+    } catch (err) {
+      console.error(err)
+      showAppMessage('Failed to delete collection', 'error')
     }
-  } catch (err) {
-    console.error(err)
-    showAppMessage('Failed to delete collection', 'error')
   }
-}
   return (
     <div className="bg-white p-6 rounded-xl shadow-sm border">
-      <h2 className="text-xl font-bold mb-4 text-[#d90429]">
+      <h2 className="text-xl font-bold mb-4 text-[#e75024]">
         {selectedTable
           ? `Update Table: ${selectedTable.name}`
           : 'Manage Tables'}
@@ -201,7 +204,7 @@ const handleDeleteTable = async (collectionName) => {
                   <td className="py-2 flex gap-2">
                     <button
                       onClick={() => handleEdit(table)}
-                      className="text-sm text-[#d90429] flex items-center gap-1 hover:underline"
+                      className="text-sm text-[#e75024] flex items-center gap-1 hover:underline"
                     >
                       <Pencil size={14} /> Edit
                     </button>
@@ -296,7 +299,7 @@ const handleDeleteTable = async (collectionName) => {
           <div className="pt-4 flex gap-3">
             <button
               type="submit"
-              className="bg-[#d90429] text-white px-4 py-2 rounded-md hover:bg-[#a30220]"
+              className="bg-[#e75024] text-white px-4 py-2 rounded-md hover:bg-[#a30220]"
             >
               Save Changes
             </button>

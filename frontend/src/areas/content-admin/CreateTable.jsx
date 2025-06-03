@@ -82,7 +82,7 @@ const CreateTableForm = () => {
   return (
     <div className="relative">
       <div className="bg-white p-6 rounded-xl shadow-sm border">
-        <h2 className="text-xl font-bold mb-2 text-[#d90429]">
+        <h2 className="text-xl font-bold mb-2 text-[#e75024]">
           Create New Table
         </h2>
         <p className="text-sm text-gray-600 mb-4">
@@ -181,7 +181,7 @@ const CreateTableForm = () => {
             <button
               type="button"
               onClick={addField}
-              className="flex items-center gap-2 text-sm text-[#d90429] hover:text-[#a30220]"
+              className="flex items-center gap-2 text-sm text-[#e75024] hover:text-[#a30220]"
             >
               <PlusCircle size={16} /> Add Field
             </button>
@@ -190,7 +190,7 @@ const CreateTableForm = () => {
           <div className="pt-4">
             <button
               type="submit"
-              className="bg-[#d90429] text-white px-4 py-2 rounded-md hover:bg-[#a30220]"
+              className="bg-[#e75024] text-white px-4 py-2 rounded-md hover:bg-[#a30220]"
             >
               Create Table
             </button>
@@ -209,7 +209,7 @@ const CreateTableForm = () => {
             </p>
             <button
               onClick={() => setShowSuccessPopup(false)}
-              className="px-4 py-2 text-sm bg-[#d90429] text-white rounded-md hover:bg-[#a30220]"
+              className="px-4 py-2 text-sm bg-[#e75024] text-white rounded-md hover:bg-[#a30220]"
             >
               Close
             </button>

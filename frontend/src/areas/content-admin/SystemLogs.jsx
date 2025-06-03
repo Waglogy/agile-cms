@@ -25,7 +25,7 @@ const SystemLogs = () => {
 
   return (
     <div className="p-6 bg-white rounded-xl shadow-md">
-      <h2 className="text-xl font-bold mb-4 text-[#d90429]">System Logs</h2>
+      <h2 className="text-xl font-bold mb-4 text-[#e75024]">System Logs</h2>
       {loading ? (
         <p className="text-gray-500">Loading logs...</p>
       ) : logs.length === 0 ? (
