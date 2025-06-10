@@ -9,7 +9,7 @@ import {
   PlusSquare,
   Eye,
   Code,
-} from 'lucide-react' // added Table icon
+} from 'lucide-react' 
 
 const Sidebar = ({ mobile }) => {
   const { pathname } = useLocation()

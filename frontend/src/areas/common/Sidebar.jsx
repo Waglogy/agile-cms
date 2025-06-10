@@ -9,6 +9,7 @@ import {
   PlusSquare,
   Eye,
   Code,
+  Edit,
 } from 'lucide-react' // added Table icon
 
 const Sidebar = ({ mobile }) => {
@@ -20,17 +21,43 @@ const Sidebar = ({ mobile }) => {
       label: 'Dashboard',
       icon: <LayoutDashboard size={28} />,
     },
-    { to: '/content-admin/create-table', label: 'Create Table', icon: <Table size={28} /> },
+    {
+      to: '/content-admin/create-table',
+      label: 'Create Table',
+      icon: <Table size={28} />,
+    },
     {
       to: '/content-admin/manage-tables',
 
       label: 'Manage Tables',
       icon: <Wrench size={28} />,
     },
-    { to: '/content-admin/activity-logs', label: 'Logs', icon: <FileText size={28} /> },
-    { to: '/content-admin/insert-data', label: 'Add data', icon: <PlusSquare size={28} /> },
-    { to: '/content-admin/collection-view', label: 'Show Tables', icon: <Eye size={28} /> },
-    { to: '/content-admin/your-apis', label: 'Your APIs', icon: <Code size={28} /> },
+    {
+      to: '/content-admin/activity-logs',
+      label: 'Logs',
+      icon: <FileText size={28} />,
+    },
+    {
+      to: '/content-admin/insert-data',
+      label: 'Add data',
+      icon: <PlusSquare size={28} />,
+    },
+    {
+      to: '/content-admin/collection-view',
+      label: 'Show Tables',
+      icon: <Eye size={28} />,
+    },
+    {
+      to: '/content-admin/your-apis',
+      label: 'Your APIs',
+      icon: <Code size={28} />,
+    },
+
+    {
+      to: 'content-admin/update-data',
+      label: 'Update Table Data',
+      icon: <Edit size={28} />,
+    },
   ]
 
   return (

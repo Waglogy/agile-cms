@@ -35,6 +35,55 @@ const CollectionTable = ({ name, records }) => {
     return String(value)
   }
 
+  // Determines if a string is an image URL or base64
+const isImageUrl = (value) => {
+  if (!value) return false
+  if (typeof value === 'string') {
+    // Detect base64 or image URLs
+    return (
+      value.startsWith('data:image/') ||
+      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
+    )
+  }
+  if (typeof value === 'object' && value !== null) {
+    // If any key in the object is a valid image (recursive for thumb/large/medium)
+    return ['thumb', 'large', 'medium'].some(
+      (size) =>
+        value[size] &&
+        ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
+          (typeof value[size] === 'object' &&
+            (isImageUrl(value[size].base64) ||
+              isImageUrl(value[size].imagePath))))
+    )
+  }
+  return false
+}
+const getImageSrc = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
+  if (typeof value === 'object' && value !== null) {
+    // Prefer thumb, then large, then medium (customize order as you like)
+    const sizeOrder = ['thumb', 'large', 'medium']
+    for (let size of sizeOrder) {
+      if (value[size]) {
+        // Nested: can be base64 or imagePath string
+        if (typeof value[size] === 'string') return value[size]
+        if (value[size].base64) return value[size].base64
+        if (value[size].imagePath) return value[size].imagePath
+      }
+    }
+  }
+  return ''
+}
+
+
+
+
+
+ // Get the actual src (to strip quotes or get src from object)
+ 
+
+
   // Filter rows based on searchTerm (case-insensitive)
   const filtered = records.filter((record) =>
     Object.values(record).some((val) =>
@@ -146,7 +195,19 @@ const CollectionTable = ({ name, records }) => {
               >
                 {columns.map((col) => (
                   <td key={col} className="px-4 py-2">
-                    {cleanValue(row[col])}
+                    {isImageUrl(row[col]) ? (
+                      <img
+                        src={getImageSrc(row[col])}
+                        alt="img"
+                        className="max-h-16 max-w-32 rounded border"
+                        style={{ objectFit: 'contain' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                        }}
+                      />
+                    ) : (
+                      cleanValue(row[col])
+                    )}
                   </td>
                 ))}
               </tr>

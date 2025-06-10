@@ -7,6 +7,7 @@ import ActivityLogs from './areas/content-admin/SystemLogs'
 import InsertRecordForm from './areas/common/InsertRecordForm'
 import CollectionViewer from './areas/common/CollectionViewer'
 import YourAPIs from './areas/content-admin/YourAPIs'
+import EditData from './areas/content-admin/EditData'
 import WelcomeLogin from './areas/common/login'
 import SelectDb from './areas/common/SelectDb'
 import ContentManagerDashboard from './areas/content-manager/Dashboard'
@@ -44,6 +45,7 @@ function App() {
           <Route path="content-admin/insert-data" element={<InsertRecordForm />} />
           <Route path="content-admin/collection-view" element={<CollectionViewer />} />
           <Route path="content-admin/your-apis" element={<YourAPIs />} />
+          <Route path= "content-admin/update-data" element={<EditData/>}/>
           <Route path="content-manager/dashboard" element={<ContentManagerDashboard />} />
           <Route path="content-manager/insert-data" element={<AddDataToTable />} />
           <Route path="content-manager/collection-view" element={<CollectionViewer />} />
@@ -54,7 +56,6 @@ function App() {
                 tables={mockTables}
                 onUpdate={(updatedTable) => {
                   console.log('Updated table:', updatedTable)
-                  // Here you'd call your update API
                 }}
               />
             }

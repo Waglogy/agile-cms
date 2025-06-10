@@ -28,7 +28,7 @@ const Header = ({ toggleSidebar }) => {
         <div className="flex items-center gap-4">
           <NotificationDropdown notifications={mockNotifications} />
           <span className="text-[#1f1f1f] text-sm font-medium bg-[#facc15] px-3 py-1 rounded-full">
-            Admin Panel
+           Content Admin
           </span>
         </div>
       </div>

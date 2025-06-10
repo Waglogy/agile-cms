@@ -7,6 +7,7 @@ import {
   insertDataToCollection,
 } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
+import axios from 'axios'
 
 const SYSTEM_FIELDS = [
   'id',
@@ -26,6 +27,7 @@ const InsertRecordForm = () => {
   const [selectedCollection, setSelectedCollection] = useState(null)
   const [schema, setSchema] = useState([]) // array of { column_name, … }
   const [formData, setFormData] = useState({}) // { field1: value, … }
+  const [uploadedFiles, setUploadedFiles] = useState({})
   const { showAppMessage } = useNotification()
 
   // Fetch all collection names on mount
@@ -51,11 +53,24 @@ const InsertRecordForm = () => {
       try {
         const res = await getCollectionByName(selectedCollection)
         const columns = res?.data?.data || []
-        const filtered = columns.filter(
-          (col) => !SYSTEM_FIELDS.includes(col.column_name)
-        )
+        const meta_data = res?.data?.meta_data || {}
+
+        const filtered = columns
+          .filter((col) => !SYSTEM_FIELDS.includes(col.column_name))
+          .map((col) => {
+            // Extract is_multiple from meta_data
+            const meta = meta_data[col.column_name]
+            let is_multiple = false
+            if (meta && typeof meta === 'string') {
+              const m = meta.match(/is_multiple=(t|f)/)
+              is_multiple = m?.[1] === 't'
+            }
+            return { ...col, is_multiple }
+          })
+
         setSchema(filtered)
-        setFormData({}) // reset any previous inputs
+        setFormData({})
+        setUploadedFiles({})
       } catch (err) {
         console.error(err)
         showAppMessage('Failed to fetch schema', 'error')
@@ -65,9 +80,96 @@ const InsertRecordForm = () => {
     fetchSchema()
   }, [selectedCollection, showAppMessage])
 
+  // Handle file uploads
+  const handleFileUpload = async (fieldName, files, isMultiple) => {
+    try {
+      const formData = new FormData()
+      Array.from(files).forEach((file) => {
+        formData.append('files', file)
+      })
+
+      const uploadRes = await axios.post(
+        'http://localhost:8000/api/insert',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      if (uploadRes.data.status) {
+        const fileUrls = uploadRes.data.data.map((file) => file.url)
+        setUploadedFiles((prev) => ({
+          ...prev,
+          [fieldName]: isMultiple
+            ? [...(prev[fieldName] || []), ...fileUrls]
+            : fileUrls, // for single image, just take the latest
+        }))
+
+        // Update form data with the URLs
+        setFormData((prev) => ({
+          ...prev,
+          [fieldName]: isMultiple
+            ? JSON.stringify([
+                ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
+                ...fileUrls,
+              ])
+            : JSON.stringify(fileUrls[0]), // Store single image as JSON string
+        }))
+
+        showAppMessage('Files uploaded successfully', 'success')
+      } else {
+        throw new Error('Upload failed')
+      }
+    } catch (err) {
+      console.error('Error uploading files:', err)
+      showAppMessage('Failed to upload files', 'error')
+    }
+  }
+
+  // Remove a file
+  const removeFile = (fieldName, fileUrl, isMultiple) => {
+    setUploadedFiles((prev) => ({
+      ...prev,
+      [fieldName]: prev[fieldName].filter((url) => url !== fileUrl),
+    }))
+
+    setFormData((prev) => {
+      if (isMultiple) {
+        const updated = uploadedFiles[fieldName].filter(
+          (url) => url !== fileUrl
+        )
+        return {
+          ...prev,
+          [fieldName]: JSON.stringify(updated),
+        }
+      } else {
+        return {
+          ...prev,
+          [fieldName]: JSON.stringify(''),
+        }
+      }
+    })
+  }
+
   // Handle input changes for form fields
-  const handleChange = (key, value) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
+  const handleChange = (key, value, type) => {
+    if (type === 'jsonb') {
+      // For jsonb fields, we handle file uploads separately
+      return
+    }
+
+    // Convert value based on field type
+    let processedValue = value
+    if (type === 'integer') {
+      // Convert to integer, use 0 if empty or invalid
+      processedValue = value === '' ? 0 : parseInt(value, 10) || 0
+    } else if (type === 'boolean') {
+      processedValue = Boolean(value)
+    }
+
+    setFormData((prev) => ({ ...prev, [key]: processedValue }))
   }
 
   // Submit new record
@@ -174,7 +276,7 @@ const InsertRecordForm = () => {
         </div>
       </div>
 
-      {/* Grid of collection “cards” with Insert button */}
+      {/* Grid of collection "cards" with Insert button */}
       {filtered.length === 0 ? (
         <p className="text-sm text-gray-500 mb-6">
           {collectionSearch
@@ -217,19 +319,111 @@ const InsertRecordForm = () => {
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 mb-6">
               {schema.map((field) => (
-                <div key={field.column_name}>
+                <div key={field.column_name} className="mb-4">
                   <label className="block text-sm font-medium text-gray-600 mb-1">
                     {field.column_name}
+                    {field.data_type === 'jsonb' &&
+                      (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
                   </label>
-                  <input
-                    type="text"
-                    value={formData[field.column_name] || ''}
-                    onChange={(e) =>
-                      handleChange(field.column_name, e.target.value)
-                    }
-                    className="w-full px-3 py-2 border rounded-md"
-                    placeholder={`Enter ${field.column_name}`}
-                  />
+
+                  {field.data_type === 'jsonb' ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="file"
+                          multiple={field.is_multiple}
+                          accept="image/*"
+                          onChange={(e) =>
+                            handleFileUpload(
+                              field.column_name,
+                              e.target.files,
+                              field.is_multiple
+                            )
+                          }
+                          className="block w-full text-sm text-gray-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-md file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-blue-50 file:text-blue-700
+                            hover:file:bg-blue-100"
+                        />
+                      </div>
+
+                      {/* Display uploaded files */}
+                      {uploadedFiles[field.column_name]?.length > 0 && (
+                        <div className="mt-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {uploadedFiles[field.column_name].map(
+                            (fileUrl, index) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={fileUrl}
+                                  alt={`Uploaded ${index + 1}`}
+                                  className="w-full h-24 object-cover rounded-md"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeFile(
+                                      field.column_name,
+                                      fileUrl,
+                                      field.is_multiple
+                                    )
+                                  }
+                                  className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                >
+                                  <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    className="h-4 w-4"
+                                    viewBox="0 0 20 20"
+                                    fill="currentColor"
+                                  >
+                                    <path
+                                      fillRule="evenodd"
+                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                      clipRule="evenodd"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <input
+                      type={
+                        field.data_type === 'boolean'
+                          ? 'checkbox'
+                          : field.data_type === 'integer'
+                          ? 'number'
+                          : 'text'
+                      }
+                      checked={
+                        field.data_type === 'boolean'
+                          ? formData[field.column_name] === true
+                          : undefined
+                      }
+                      value={
+                        field.data_type === 'boolean'
+                          ? undefined
+                          : formData[field.column_name] ?? ''
+                      }
+                      min={field.data_type === 'integer' ? 0 : undefined}
+                      step={field.data_type === 'integer' ? 1 : undefined}
+                      onChange={(e) =>
+                        handleChange(
+                          field.column_name,
+                          e.target.value,
+                          field.data_type
+                        )
+                      }
+                      className={`w-full px-3 py-2 border rounded-md ${
+                        field.data_type === 'boolean' ? 'w-4 h-4' : ''
+                      }`}
+                      placeholder={`Enter ${field.column_name}`}
+                    />
+                  )}
                 </div>
               ))}
 
