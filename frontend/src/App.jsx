@@ -12,6 +12,7 @@ import WelcomeLogin from './areas/common/login'
 import SelectDb from './areas/common/SelectDb'
 import ContentManagerDashboard from './areas/content-manager/Dashboard'
 import AddDataToTable from './areas/content-manager/AddData-To-Table'
+
 // ✅ Mock table data for TableManager
 const mockTables = [
   {
@@ -39,6 +40,7 @@ function App() {
         <Route path="/content-manager/dashboard" element={<ContentManagerDashboard />} />
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<Navigate to="/login" />} />
+
           <Route path="content-admin/dashboard" element={<AdminDashboard />} />
           <Route path="content-admin/create-table" element={<CreateTable />} />
           <Route path="content-admin/activity-logs" element={<ActivityLogs />} />
@@ -48,7 +50,7 @@ function App() {
           <Route path= "content-admin/update-data" element={<EditData/>}/>
           <Route path="content-manager/dashboard" element={<ContentManagerDashboard />} />
           <Route path="content-manager/insert-data" element={<AddDataToTable />} />
-          <Route path="content-manager/collection-view" element={<CollectionViewer />} />
+          <Route path="data/content-manager/collection-view" element={<CollectionViewer />} />
           <Route
             path="content-admin/manage-tables"
             element={
