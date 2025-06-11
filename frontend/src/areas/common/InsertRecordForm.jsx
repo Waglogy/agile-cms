@@ -7,7 +7,6 @@ import {
 import { useNotification } from '../../context/NotificationContext'
 import axios from 'axios'
 import 'react-quill/dist/quill.snow.css'
-import { Upload, X } from 'lucide-react'
 
 // Use React.lazy instead of next/dynamic
 const ReactQuillEditor = lazy(() => import('react-quill'))
@@ -33,8 +32,8 @@ const InsertRecordForm = () => {
   const [uploadedFiles, setUploadedFiles] = useState({})
   const [richTextFields, setRichTextFields] = useState({})
   const { showAppMessage } = useNotification()
-  const [imagePreviews, setImagePreviews] = useState({})
-  const [uploadingImages, setUploadingImages] = useState({})
+  const [image, setImage] = useState(null);
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     const fetchCollections = async () => {
@@ -112,20 +111,19 @@ const InsertRecordForm = () => {
           ...prev,
           [fieldName]: isMultiple
             ? JSON.stringify([
-                ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
-                ...fileUrls,
-              ])
-            : JSON.stringify(fileUrls[0]),
+              ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
+              ...fileUrls,
+            ])
+            : JSON.stringify(fileUrls[0]), // Store single image as JSON string
         }))
         showAppMessage('Files uploaded successfully', 'success')
       } else {
-        throw new Error('Upload failed')
+        throw new Error('Upload failed');
       }
     } catch (err) {
-      console.error('Error uploading files:', err)
-      showAppMessage('Failed to upload files', 'error')
+      console.error('Error uploading files:', err);
+      showAppMessage('Failed to upload files', 'error');
     }
-  }
 
   // Remove a file (no changes)
   const removeFile = (fieldName, fileUrl, isMultiple) => {
@@ -183,19 +181,51 @@ const InsertRecordForm = () => {
   // Submit new record
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedCollection) return
-    const payload = {}
-    for (const key in formData) {
-      const val = formData[key]
-      if (val !== '' && val != null) payload[key] = val
+
+
+    if (!image) {
+      setStatus('Please provide both a name and an image.');
+      return;
     }
+
+    const formData = new FormData();
+    formData.append('name', "Uploading From Agile CMS."); // should be dynamic
+    formData.append('email', "abhisekadhikari1906@gmail.com"); // should be dynamic
+    formData.append('image', image); // ok
+    formData.append('collectionName', 'hello_world') // should be dynamic
+    formData.append('imageField', 'avatar') // should be dynamic
+
     try {
-      await insertDataToCollection(selectedCollection, payload)
+      const response = await fetch('http://localhost:8000/api/collection/insert', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log(response);
+
+
+      if (response.ok) {
+        setStatus('Upload successful!');
+      } else {
+        const errorText = await response.text();
+        setStatus(`Upload failed: ${errorText}`);
+      }
+      /* await insertDataToCollection(selectedCollection,)
       showAppMessage('Record inserted successfully', 'success')
+      // After inserting, clear form and optionally re-fetch schema if needed
+      setFormData({}) */
       setFormData({})
     } catch (err) {
       console.error(err)
       showAppMessage('Failed to insert data', 'error')
+    }
+  }
+
+  // handle image change
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setImage(file)
     }
   }
 
@@ -212,62 +242,7 @@ const InsertRecordForm = () => {
     startIdx + ITEMS_PER_PAGE
   )
 
-  const handleImageChange = async (fieldName, event) => {
-    const files = Array.from(event.target.files)
-    const isMultiple = schema.find(
-      (field) => field.column_name === fieldName
-    )?.is_multiple
-
-    if (!isMultiple && files.length > 1) {
-      showAppMessage('This field only accepts a single image')
-      return
-    }
-
-    setUploadingImages((prev) => ({ ...prev, [fieldName]: true }))
-
-    try {
-      const formData = new FormData()
-      files.forEach((file) => {
-        formData.append('image', file)
-      })
-
-      const response = await axios.post(
-        'http://localhost:8000/api/upload',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
-      )
-
-      const uploadedImages = response.data.urls || []
-
-      // Update form data with image URLs
-      setFormData((prev) => ({
-        ...prev,
-        [fieldName]: isMultiple
-          ? [...(prev[fieldName] || []), ...uploadedImages]
-          : uploadedImages[0],
-      }))
-
-      // Update previews
-      const newPreviews = {}
-      files.forEach((file, index) => {
-        const reader = new FileReader()
-        reader.onloadend = () => {
-          newPreviews[`${fieldName}_${Date.now()}_${index}`] = reader.result
-          setImagePreviews((prev) => ({ ...prev, ...newPreviews }))
-        }
-        reader.readAsDataURL(file)
-      })
-    } catch (error) {
-      console.error('Error uploading image:', error)
-      showAppMessage('Failed to upload image')
-    } finally {
-      setUploadingImages((prev) => ({ ...prev, [fieldName]: false }))
-    }
-  }
+ 
 
   const removeImage = (fieldName, index) => {
     setFormData((prev) => {
@@ -447,13 +422,14 @@ const InsertRecordForm = () => {
                           type="file"
                           multiple={field.is_multiple}
                           accept="image/*"
-                          onChange={(e) =>
+                          onChange={handleImageChange}
+                          /* onChange={(e) =>
                             handleFileUpload(
                               field.column_name,
                               e.target.files,
                               field.is_multiple
                             )
-                          }
+                          } */
                           className="block w-full text-sm text-gray-500
                             file:mr-4 file:py-2 file:px-4
                             file:rounded-md file:border-0
@@ -552,4 +528,4 @@ const InsertRecordForm = () => {
   )
 }
 
-export default InsertRecordForm
+export default InsertRecordForm;
