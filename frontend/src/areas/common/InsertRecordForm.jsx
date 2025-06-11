@@ -185,9 +185,11 @@ const InsertRecordForm = () => {
     }
 
     const formData = new FormData();
-    formData.append('name', "Uploading From Agile CMS.");
-    formData.append('image', image);
-    formData.append('collectionName', 'human')
+    formData.append('name', "Uploading From Agile CMS."); // should be dynamic
+    formData.append('email', "abhisekadhikari1906@gmail.com"); // should be dynamic
+    formData.append('image', image); // ok
+    formData.append('collectionName', 'hello_world') // should be dynamic
+    formData.append('imageField', 'avatar') // should be dynamic
 
     try {
       const response = await fetch('http://localhost:8000/api/collection/insert', {

@@ -162,10 +162,8 @@ export async function getCollectionData(req, res, next) {
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
-    console.log(req.body)
-    console.log(req.files)
+    const { collectionName, imageField, ...body } = req.body
 
-    const { collectionName, ...body } = req.body
     if (!collectionName) {
       return next(
         new AppError(400, 'Data insert failed', 'Please enter collection name')
@@ -216,7 +214,7 @@ export async function insertData(req, res, next) {
     }
 
     await queryExecutor.updateData(collectionName, newRecordId, {
-      image: result.image_id,
+      [imageField]: result.image_id,
     })
     await queryExecutor.insertLogEntry(
       'insert_row',
