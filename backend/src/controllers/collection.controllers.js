@@ -162,6 +162,9 @@ export async function getCollectionData(req, res, next) {
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
+    console.log(req.body)
+    console.log(req.files)
+
     const { collectionName, ...body } = req.body
     if (!collectionName) {
       return next(
@@ -213,16 +216,15 @@ export async function insertData(req, res, next) {
     }
 
     await queryExecutor.updateData(collectionName, newRecordId, {
-      images: result.image_id,
+      image: result.image_id,
     })
-      await queryExecutor.insertLogEntry(
-        'insert_row',
-        req.user?.email || 'system',
-        collectionName,
-        newRecordId,
-        payload
-      )
-
+    await queryExecutor.insertLogEntry(
+      'insert_row',
+      req.user?.email || 'system',
+      collectionName,
+      newRecordId,
+      payload
+    )
 
     /* await queryExecutor.updateData(
       collectionName,
@@ -352,7 +354,6 @@ export async function alterCollection(req, res, next) {
   }
 }
 
-
 export async function publishData(req, res, next) {
   const { tableName, id } = req.body
 
@@ -362,13 +363,13 @@ export async function publishData(req, res, next) {
 
   try {
     const success = await queryExecutor.publishRow(tableName, id)
-  await queryExecutor.insertLogEntry(
-    'publish_row',
-    req.user?.email || 'system',
-    tableName,
-    id,
-    {}
-  )
+    await queryExecutor.insertLogEntry(
+      'publish_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      {}
+    )
 
     return res.json({
       status: success,
@@ -410,6 +411,3 @@ export async function getSystemLogs(req, res, next) {
     return next(new AppError(500, 'Failed to fetch logs', err))
   }
 }
-
-
-

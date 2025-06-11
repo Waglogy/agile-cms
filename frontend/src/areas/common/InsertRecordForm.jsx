@@ -29,6 +29,8 @@ const InsertRecordForm = () => {
   const [formData, setFormData] = useState({}) // { field1: value, … }
   const [uploadedFiles, setUploadedFiles] = useState({})
   const { showAppMessage } = useNotification()
+  const [image, setImage] = useState(null);
+  const [status, setStatus] = useState('');
 
   // Fetch all collection names on mount
   useEffect(() => {
@@ -112,9 +114,9 @@ const InsertRecordForm = () => {
           ...prev,
           [fieldName]: isMultiple
             ? JSON.stringify([
-                ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
-                ...fileUrls,
-              ])
+              ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
+              ...fileUrls,
+            ])
             : JSON.stringify(fileUrls[0]), // Store single image as JSON string
         }))
 
@@ -175,25 +177,50 @@ const InsertRecordForm = () => {
   // Submit new record
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!selectedCollection) return
 
-    // build payload only with non-empty values
-    const payload = {}
-    for (const key in formData) {
-      const val = formData[key]
-      if (val !== '' && val != null) payload[key] = val
+
+    if (!image) {
+      setStatus('Please provide both a name and an image.');
+      return;
     }
 
+    const formData = new FormData();
+    formData.append('name', "Uploading From Agile CMS.");
+    formData.append('image', image);
+    formData.append('collectionName', 'human')
+
     try {
-      await insertDataToCollection(selectedCollection, payload)
+      const response = await fetch('http://localhost:8000/api/collection/insert', {
+        method: 'POST',
+        body: formData,
+      });
+
+      console.log(response);
+
+
+      if (response.ok) {
+        setStatus('Upload successful!');
+      } else {
+        const errorText = await response.text();
+        setStatus(`Upload failed: ${errorText}`);
+      }
+      /* await insertDataToCollection(selectedCollection,)
       showAppMessage('Record inserted successfully', 'success')
       // After inserting, clear form and optionally re-fetch schema if needed
-      setFormData({})
+      setFormData({}) */
     } catch (err) {
       console.error(err)
       showAppMessage('Failed to insert data', 'error')
     }
   }
+
+  // handle image change
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImage(file);
+    }
+  };
 
   // Filter collections by search term
   const filtered = collections.filter((name) =>
@@ -232,10 +259,9 @@ const InsertRecordForm = () => {
             disabled={currentPage === 1}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === 1
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -248,11 +274,10 @@ const InsertRecordForm = () => {
                 onClick={() => setCurrentPage(pageNum)}
                 className={`
                 px-3 py-1 rounded-md text-sm
-                ${
-                  pageNum === currentPage
+                ${pageNum === currentPage
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
-                }
+                  }
               `}
               >
                 {pageNum}
@@ -264,10 +289,9 @@ const InsertRecordForm = () => {
             disabled={currentPage === totalPages}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === totalPages
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -333,13 +357,14 @@ const InsertRecordForm = () => {
                           type="file"
                           multiple={field.is_multiple}
                           accept="image/*"
-                          onChange={(e) =>
+                          onChange={handleImageChange}
+                          /* onChange={(e) =>
                             handleFileUpload(
                               field.column_name,
                               e.target.files,
                               field.is_multiple
                             )
-                          }
+                          } */
                           className="block w-full text-sm text-gray-500
                             file:mr-4 file:py-2 file:px-4
                             file:rounded-md file:border-0
@@ -396,8 +421,8 @@ const InsertRecordForm = () => {
                         field.data_type === 'boolean'
                           ? 'checkbox'
                           : field.data_type === 'integer'
-                          ? 'number'
-                          : 'text'
+                            ? 'number'
+                            : 'text'
                       }
                       checked={
                         field.data_type === 'boolean'
@@ -418,9 +443,8 @@ const InsertRecordForm = () => {
                           field.data_type
                         )
                       }
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        field.data_type === 'boolean' ? 'w-4 h-4' : ''
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-md ${field.data_type === 'boolean' ? 'w-4 h-4' : ''
+                        }`}
                       placeholder={`Enter ${field.column_name}`}
                     />
                   )}
