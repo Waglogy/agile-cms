@@ -4,17 +4,48 @@ import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
 
+
+
+function constraintToSql(constraints, type) {
+  let parts = []
+  if (!constraints) return ''
+  if (constraints.notNull) parts.push('NOT NULL')
+  if (constraints.unique) parts.push('UNIQUE')
+  if (
+    constraints.defaultValue !== '' &&
+    constraints.defaultValue !== undefined
+  ) {
+    if (type === 'TEXT' || type === 'DATE') {
+      parts.push(`DEFAULT '${constraints.defaultValue}'`)
+    } else if (type === 'BOOLEAN') {
+      parts.push(
+        `DEFAULT ${constraints.defaultValue === 'true' || constraints.defaultValue === true ? 'TRUE' : 'FALSE'}`
+      )
+    } else {
+      parts.push(`DEFAULT ${constraints.defaultValue}`)
+    }
+  }
+  // Optionally, handle min/max (as CHECK constraints)
+  return parts.join(' ')
+}
+
 // Create a new table with the given schema
 export async function createTable(req, res, next) {
   const validation = joiValidator(collectionValidation.createTable, req)
-
   if (!validation.success)
     return next(new AppError(400, 'Validation failed', validation.errors))
 
   try {
+    // 🟢 Transform constraints before saving!
+    const schema = { ...validation.value.schema }
+    for (const fieldName in schema) {
+      const field = schema[fieldName]
+      field.constraints = constraintToSql(field.constraints, field.type)
+    }
+
     const success = await queryExecutor.createCollection(
       validation.value.tableName,
-      validation.value.schema
+      schema
     )
 
     await queryExecutor.insertLogEntry(
@@ -22,7 +53,7 @@ export async function createTable(req, res, next) {
       req.user?.email || 'system',
       validation.value.tableName,
       null,
-      validation.value.schema
+      schema // use the schema actually created
     )
 
     return res.json({
@@ -33,6 +64,7 @@ export async function createTable(req, res, next) {
     return next(new AppError(500, 'Failed to create table', err))
   }
 }
+
 
 // Delete a specific collection (table)
 export async function deleteCollection(req, res, next) {
@@ -162,7 +194,8 @@ export async function getCollectionData(req, res, next) {
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
-    const { collectionName, ...body } = req.body
+    const { collectionName, imageField, ...body } = req.body
+
     if (!collectionName) {
       return next(
         new AppError(400, 'Data insert failed', 'Please enter collection name')
@@ -213,16 +246,15 @@ export async function insertData(req, res, next) {
     }
 
     await queryExecutor.updateData(collectionName, newRecordId, {
-      images: result.image_id,
+      [imageField]: result.image_id,
     })
-      await queryExecutor.insertLogEntry(
-        'insert_row',
-        req.user?.email || 'system',
-        collectionName,
-        newRecordId,
-        payload
-      )
-
+    await queryExecutor.insertLogEntry(
+      'insert_row',
+      req.user?.email || 'system',
+      collectionName,
+      newRecordId,
+      payload
+    )
 
     /* await queryExecutor.updateData(
       collectionName,
@@ -352,7 +384,6 @@ export async function alterCollection(req, res, next) {
   }
 }
 
-
 export async function publishData(req, res, next) {
   const { tableName, id } = req.body
 
@@ -362,13 +393,13 @@ export async function publishData(req, res, next) {
 
   try {
     const success = await queryExecutor.publishRow(tableName, id)
-  await queryExecutor.insertLogEntry(
-    'publish_row',
-    req.user?.email || 'system',
-    tableName,
-    id,
-    {}
-  )
+    await queryExecutor.insertLogEntry(
+      'publish_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      {}
+    )
 
     return res.json({
       status: success,
@@ -410,6 +441,3 @@ export async function getSystemLogs(req, res, next) {
     return next(new AppError(500, 'Failed to fetch logs', err))
   }
 }
-
-
-

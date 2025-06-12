@@ -9,21 +9,67 @@ import {
   PlusSquare,
   Eye,
   Code,
-} from 'lucide-react' 
+  Edit,
+} from 'lucide-react' // added Table icon
+import { getUserRole } from '../../utils/roleManager'
 
 const Sidebar = ({ mobile }) => {
   const { pathname } = useLocation()
+  const role = getUserRole()
 
-  const navItems = [
+  const allNavItems = [
     {
-      to: '/content-manager/dashboard',
+      to: '/content-admin/dashboard',
       label: 'Dashboard',
       icon: <LayoutDashboard size={28} />,
+      roles: ['content_admin'],
     },
-   
-    { to: '/content-manager/insert-data', label: 'Add data', icon: <PlusSquare size={28} /> },
-    { to: '/content-manager/collection-view', label: 'Show Tables', icon: <Eye size={28} /> },
+    {
+      to: '/content-admin/create-table',
+      label: 'Create Table',
+      icon: <Table size={28} />,
+      roles: ['content_admin'],
+    },
+    {
+      to: '/content-admin/manage-tables',
+      label: 'Manage Tables',
+      icon: <Wrench size={28} />,
+      roles: ['content_admin'],
+    },
+    {
+      to: '/content-admin/activity-logs',
+      label: 'Logs',
+      icon: <FileText size={28} />,
+      roles: ['content_admin', 'content_manager'],
+    },
+    {
+      to: '/content-admin/insert-data',
+      label: 'Add data',
+      icon: <PlusSquare size={28} />,
+      roles: ['content_admin'],
+    },
+    {
+      to: '/content-admin/collection-view',
+      label: 'Show Tables',
+      icon: <Eye size={28} />,
+      roles: ['content_admin', 'content_manager'],
+    },
+    {
+      to: '/content-admin/your-apis',
+      label: 'Your APIs',
+      icon: <Code size={28} />,
+      roles: ['content_admin', 'content_manager'],
+    },
+    {
+      to: 'content-admin/update-data',
+      label: 'Update Table Data',
+      icon: <Edit size={28} />,
+      roles: ['content_admin', 'content_manager'],
+    },
   ]
+
+  // Filter navigation items based on role from localStorage
+  const navItems = allNavItems.filter((item) => item.roles.includes(role))
 
   return (
     <aside
