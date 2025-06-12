@@ -13,6 +13,8 @@ import {
   publishData,
   getPublishedContent,
   getSystemLogs,
+  rollbackData,
+  getArchivedContent,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 
@@ -33,6 +35,9 @@ const collectionRouter = Router()
  **
  */
 collectionRouter.post('/create', createTable)
+
+collectionRouter.post('/rollback', rollbackData)
+collectionRouter.get('/archived/:tableName', getArchivedContent)
 
 /*
  **

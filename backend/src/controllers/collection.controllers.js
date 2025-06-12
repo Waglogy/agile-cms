@@ -3,6 +3,7 @@ import { collectionValidation } from '../validator/collection.validator.js'
 import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
+import { client } from '../services/initializeDatabase.js'
 
 
 
@@ -218,6 +219,17 @@ export async function insertData(req, res, next) {
 
     // 3) insert the row
     const payload = { ...body }
+    // Sanitize string fields: remove accidental outer quotes like "\"draft\""
+    for (const key in payload) {
+      if (
+        typeof payload[key] === 'string' &&
+        payload[key].startsWith('"') &&
+        payload[key].endsWith('"')
+      ) {
+        payload[key] = payload[key].slice(1, -1)
+      }
+    }
+
     const insertResult = await queryExecutor.insertData(collectionName, payload)
     if (!insertResult) {
       return res
@@ -255,6 +267,20 @@ export async function insertData(req, res, next) {
       newRecordId,
       payload
     )
+    // 7) fetch the inserted row and save snapshot
+    const existing = await client.query(
+      `SELECT to_jsonb(t) FROM ${collectionName} t WHERE id = $1`,
+      [newRecordId]
+    )
+
+    const oldData = existing.rows[0]?.to_jsonb
+
+    if (oldData) {
+      await client.query(
+        'SELECT agile_cms.save_content_version($1, $2, $3, $4)',
+        [collectionName, newRecordId, oldData, oldData.version || 1]
+      )
+    }
 
     /* await queryExecutor.updateData(
       collectionName,
@@ -271,6 +297,45 @@ export async function insertData(req, res, next) {
   } catch (error) {
     console.error(error)
     return next(new AppError(500, 'Internal Server Error', error.message))
+  }
+}
+export async function rollbackData(req, res, next) {
+  const { tableName, id, version } = req.body
+  if (!tableName || !id || !version) {
+    return next(new AppError(400, 'Missing rollback parameters'))
+  }
+
+  try {
+    const success = await queryExecutor.rollbackRow(tableName, id, version)
+    await queryExecutor.insertLogEntry(
+      'rollback_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      { version }
+    )
+
+    return res.json({
+      status: success,
+      message: success ? 'Rollback successful' : 'Rollback failed',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Rollback failed', err))
+  }
+}
+export async function getArchivedContent(req, res, next) {
+  const { tableName } = req.params
+  if (!tableName) return next(new AppError(400, 'Table name is required'))
+
+  try {
+    const data = await queryExecutor.getPublishedData(tableName, 'archived') // reuse the existing function
+    return res.json({
+      status: true,
+      message: 'Archived content retrieved',
+      data,
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to fetch archived data', err))
   }
 }
 

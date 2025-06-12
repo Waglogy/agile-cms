@@ -45,6 +45,21 @@ class QueryExecutorFactory {
     return result.rows[0].update_content_type_data
   }
 
+  async rollbackRow(tableName, id, version) {
+    const result = await client.query(
+      'SELECT agile_cms.rollback_content_type_row($1, $2, $3)',
+      [tableName, id, version]
+    )
+    return result.rows[0].rollback_content_type_row === true
+  }
+  async getPublishedData(tableName, status = 'published') {
+    const result = await client.query(
+      'SELECT agile_cms.get_collection_by_status($1, $2)',
+      [tableName, status]
+    )
+    return result.rows[0].get_collection_by_status
+  }
+
   async deleteData(tableName, id) {
     const result = await client.query(
       'SELECT delete_content_type_data($1, $2)',

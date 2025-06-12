@@ -1,6 +1,6 @@
 // src/areas/common/InsertRecordForm.jsx
 
-import React, { useEffect, useState, lazy, Suspense } from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   getAllCollections,
   getCollectionByName,
@@ -8,7 +8,6 @@ import {
 } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 import axios from 'axios'
-import 'react-quill/dist/quill.snow.css'
 
 const SYSTEM_FIELDS = [
   'id',
@@ -21,10 +20,7 @@ const SYSTEM_FIELDS = [
 
 const ITEMS_PER_PAGE = 6
 
-// Use React.lazy for the editor
-const ReactQuillEditor = lazy(() => import('react-quill'))
-
-const InsertRecordForm = ({ collectionName, onSuccess }) => {
+const InsertRecordForm = () => {
   const [collections, setCollections] = useState([]) // [ 'users', 'orders', … ]
   const [collectionSearch, setCollectionSearch] = useState('') // filter text
   const [currentPage, setCurrentPage] = useState(1)
@@ -35,7 +31,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
   const { showAppMessage } = useNotification()
   const [image, setImage] = useState(null)
   const [status, setStatus] = useState('')
-  const [richTextFields, setRichTextFields] = useState({})
 
   // Fetch all collection names on mount
   useEffect(() => {
@@ -78,14 +73,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
         setSchema(filtered)
         setFormData({})
         setUploadedFiles({})
-        // Initialize rich text fields
-        const rtFields = {}
-        filtered.forEach((field) => {
-          if (field.data_type === 'text') {
-            rtFields[field.column_name] = false
-          }
-        })
-        setRichTextFields(rtFields)
       } catch (err) {
         console.error(err)
         showAppMessage('Failed to fetch schema', 'error')
@@ -225,27 +212,14 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
 
       if (response.ok) {
         setStatus('Upload successful!')
-
-        // Reset all form states
-        setImage(null)
-        setFormData({})
-        setUploadedFiles({})
-        setSelectedCollection(null) // This will close the form
-
-        // Refresh the collections list
-        try {
-          const res = await getAllCollections()
-          const list = res?.data?.data?.get_all_collections || []
-          setCollections(list.map((c) => c.collection_name))
-        } catch (refreshErr) {
-          console.error('Error refreshing collections:', refreshErr)
-        }
-
-        showAppMessage('Record inserted successfully', 'success')
       } else {
         const errorText = await response.text()
         setStatus(`Upload failed: ${errorText}`)
       }
+      /* await insertDataToCollection(selectedCollection,)
+      showAppMessage('Record inserted successfully', 'success')
+      // After inserting, clear form and optionally re-fetch schema if needed
+      setFormData({}) */
     } catch (err) {
       console.error(err)
       showAppMessage('Failed to insert data', 'error')
@@ -272,19 +246,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
     startIdx,
     startIdx + ITEMS_PER_PAGE
   )
-
-  // Add rich text handlers
-  const handleToggleRichText = (field) => {
-    setRichTextFields((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }))
-    // Reset the content when switching modes
-    setFormData((prev) => ({
-      ...prev,
-      [field]: '',
-    }))
-  }
 
   return (
     <div className="bg-white p-6 rounded-xl shadow border">
@@ -404,61 +365,7 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                       (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
                   </label>
 
-                  {field.data_type === 'text' ? (
-                    <div>
-                      <div className="flex items-center mb-2">
-                        <label className="mr-2 text-xs font-semibold text-gray-500">
-                          Use Rich Text Editor
-                        </label>
-                        <input
-                          type="checkbox"
-                          checked={richTextFields[field.column_name] || false}
-                          onChange={() =>
-                            handleToggleRichText(field.column_name)
-                          }
-                          className="w-4 h-4"
-                        />
-                      </div>
-                      {richTextFields[field.column_name] ? (
-                        <Suspense fallback={<div>Loading editor...</div>}>
-                          <ReactQuillEditor
-                            theme="snow"
-                            value={formData[field.column_name] || ''}
-                            onChange={(content) => {
-                              setFormData((prev) => ({
-                                ...prev,
-                                [field.column_name]: content,
-                              }))
-                            }}
-                            className="bg-white"
-                            modules={{
-                              toolbar: [
-                                [{ header: [1, 2, 3, false] }],
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{ list: 'ordered' }, { list: 'bullet' }],
-                                ['link', 'image'],
-                                ['clean'],
-                              ],
-                            }}
-                          />
-                        </Suspense>
-                      ) : (
-                        <input
-                          type="text"
-                          value={formData[field.column_name] || ''}
-                          onChange={(e) =>
-                            handleChange(
-                              field.column_name,
-                              e.target.value,
-                              field.data_type
-                            )
-                          }
-                          className="w-full px-3 py-2 border rounded-md"
-                          placeholder={`Enter ${field.column_name}`}
-                        />
-                      )}
-                    </div>
-                  ) : field.data_type === 'jsonb' ? (
+                  {field.data_type === 'jsonb' ? (
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2">
                         <input

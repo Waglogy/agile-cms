@@ -115,6 +115,31 @@ async function initializeDatabase(db_name) {
   $$ LANGUAGE plpgsql;
 `)
 
+
+await client.query(`
+  CREATE TABLE IF NOT EXISTS agile_cms.content_versions (
+  id SERIAL PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  record_id INT NOT NULL,
+  version INT NOT NULL,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+`)
+
+await client.query(`
+  CREATE OR REPLACE FUNCTION agile_cms.save_content_version(
+  p_table TEXT,
+  p_id INT,
+  p_data JSONB,
+  p_version INT
+) RETURNS VOID AS $$
+BEGIN
+  INSERT INTO agile_cms.content_versions(table_name, record_id, version, data)
+  VALUES (p_table, p_id, p_version, p_data);
+END;
+$$ LANGUAGE plpgsql;
+`)
     // ✅ Create Tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -465,13 +490,17 @@ $$ LANGUAGE plpgsql;
           update_pairs TEXT := '';
           column_entry RECORD;
           row_count INT;
+        result JSONB;
       BEGIN
           FOR column_entry IN SELECT * FROM jsonb_each(update_data) LOOP
               update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' || quote_literal(column_entry.value) || ', ';
           END LOOP;
           update_pairs := TRIM(BOTH ', ' FROM update_pairs);
           IF update_pairs = '' THEN RETURN FALSE; END IF;
-          EXECUTE format('UPDATE %I SET %s WHERE id = %s;', table_name, update_pairs, id);
+EXECUTE format('SELECT to_jsonb(t) FROM %I t WHERE id = %s', table_name, id) INTO result;
+PERFORM agile_cms.save_content_version(table_name, id, result, (
+  SELECT version FROM jsonb_each(update_data)
+));
           GET DIAGNOSTICS row_count = ROW_COUNT;
           RETURN row_count > 0;
       EXCEPTION WHEN OTHERS THEN RETURN FALSE;
@@ -479,6 +508,55 @@ $$ LANGUAGE plpgsql;
       $$ LANGUAGE plpgsql;
     `)
 
+
+
+
+    await client.query(`
+      CREATE OR REPLACE FUNCTION agile_cms.rollback_content_type_row(
+  p_table TEXT,
+  p_id INT,
+  p_version INT
+) RETURNS BOOLEAN AS $$
+DECLARE
+  snapshot JSONB;
+  update_pairs TEXT := '';
+  column_entry RECORD;
+  row_count INT;
+BEGIN
+  SELECT data INTO snapshot
+  FROM agile_cms.content_versions
+  WHERE table_name = p_table AND record_id = p_id AND version = p_version
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF snapshot IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+FOR column_entry IN SELECT * FROM jsonb_each(snapshot) LOOP
+  IF column_entry.value IS NULL THEN
+    update_pairs := update_pairs || quote_ident(column_entry.key) || ' = NULL, ';
+  ELSE
+    update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' ||
+                    CASE
+                      WHEN jsonb_typeof(column_entry.value) = 'string' THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
+                      WHEN jsonb_typeof(column_entry.value) = 'null' THEN 'NULL'
+                      ELSE column_entry.value::TEXT
+                    END || ', ';
+  END IF;
+END LOOP;
+
+
+  update_pairs := TRIM(BOTH ', ' FROM update_pairs);
+
+  EXECUTE format('UPDATE %I SET %s WHERE id = %L', p_table, update_pairs, p_id);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+
+  RETURN row_count > 0;
+END;
+$$ LANGUAGE plpgsql;
+
+      `)
     // delete table
 
     await client.query(`
