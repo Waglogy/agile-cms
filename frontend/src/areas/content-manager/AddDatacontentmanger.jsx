@@ -1,5 +1,3 @@
-// src/areas/common/InsertRecordForm.jsx
-
 import React, { useEffect, useState, lazy, Suspense } from 'react'
 import {
   getAllCollections,
@@ -9,6 +7,10 @@ import {
 import { useNotification } from '../../context/NotificationContext'
 import axios from 'axios'
 import 'react-quill/dist/quill.snow.css'
+import { Upload, X } from 'lucide-react'
+
+// Use React.lazy instead of next/dynamic
+const ReactQuillEditor = lazy(() => import('react-quill'))
 
 const SYSTEM_FIELDS = [
   'id',
@@ -21,23 +23,19 @@ const SYSTEM_FIELDS = [
 
 const ITEMS_PER_PAGE = 6
 
-// Use React.lazy for the editor
-const ReactQuillEditor = lazy(() => import('react-quill'))
-
-const InsertRecordForm = ({ collectionName, onSuccess }) => {
-  const [collections, setCollections] = useState([]) // [ 'users', 'orders', … ]
-  const [collectionSearch, setCollectionSearch] = useState('') // filter text
+const InsertRecordForm = () => {
+  const [collections, setCollections] = useState([])
+  const [collectionSearch, setCollectionSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [selectedCollection, setSelectedCollection] = useState(null)
-  const [schema, setSchema] = useState([]) // array of { column_name, … }
-  const [formData, setFormData] = useState({}) // { field1: value, … }
+  const [schema, setSchema] = useState([])
+  const [formData, setFormData] = useState({})
   const [uploadedFiles, setUploadedFiles] = useState({})
-  const { showAppMessage } = useNotification()
-  const [image, setImage] = useState(null)
-  const [status, setStatus] = useState('')
   const [richTextFields, setRichTextFields] = useState({})
+  const { showAppMessage } = useNotification()
+  const [imagePreviews, setImagePreviews] = useState({})
+  const [uploadingImages, setUploadingImages] = useState({})
 
-  // Fetch all collection names on mount
   useEffect(() => {
     const fetchCollections = async () => {
       try {
@@ -52,20 +50,16 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
     fetchCollections()
   }, [showAppMessage])
 
-  // Fetch schema whenever a collection is selected
   useEffect(() => {
     if (!selectedCollection) return
-
     const fetchSchema = async () => {
       try {
         const res = await getCollectionByName(selectedCollection)
         const columns = res?.data?.data || []
         const meta_data = res?.data?.meta_data || {}
-
         const filtered = columns
           .filter((col) => !SYSTEM_FIELDS.includes(col.column_name))
           .map((col) => {
-            // Extract is_multiple from meta_data
             const meta = meta_data[col.column_name]
             let is_multiple = false
             if (meta && typeof meta === 'string') {
@@ -78,12 +72,10 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
         setSchema(filtered)
         setFormData({})
         setUploadedFiles({})
-        // Initialize rich text fields
+        // Reset rich text field toggles when schema changes
         const rtFields = {}
         filtered.forEach((field) => {
-          if (field.data_type === 'text') {
-            rtFields[field.column_name] = false
-          }
+          rtFields[field.column_name] = false
         })
         setRichTextFields(rtFields)
       } catch (err) {
@@ -91,11 +83,10 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
         showAppMessage('Failed to fetch schema', 'error')
       }
     }
-
     fetchSchema()
   }, [selectedCollection, showAppMessage])
 
-  // Handle file uploads
+  // Handle file uploads (no changes here)
   const handleFileUpload = async (fieldName, files, isMultiple) => {
     try {
       const formData = new FormData()
@@ -106,11 +97,7 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
       const uploadRes = await axios.post(
         'http://localhost:8000/api/insert',
         formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        { headers: { 'Content-Type': 'multipart/form-data' } }
       )
 
       if (uploadRes.data.status) {
@@ -119,10 +106,8 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
           ...prev,
           [fieldName]: isMultiple
             ? [...(prev[fieldName] || []), ...fileUrls]
-            : fileUrls, // for single image, just take the latest
+            : fileUrls,
         }))
-
-        // Update form data with the URLs
         setFormData((prev) => ({
           ...prev,
           [fieldName]: isMultiple
@@ -130,9 +115,8 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                 ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
                 ...fileUrls,
               ])
-            : JSON.stringify(fileUrls[0]), // Store single image as JSON string
+            : JSON.stringify(fileUrls[0]),
         }))
-
         showAppMessage('Files uploaded successfully', 'success')
       } else {
         throw new Error('Upload failed')
@@ -143,13 +127,12 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
     }
   }
 
-  // Remove a file
+  // Remove a file (no changes)
   const removeFile = (fieldName, fileUrl, isMultiple) => {
     setUploadedFiles((prev) => ({
       ...prev,
       [fieldName]: prev[fieldName].filter((url) => url !== fileUrl),
     }))
-
     setFormData((prev) => {
       if (isMultiple) {
         const updated = uploadedFiles[fieldName].filter(
@@ -170,93 +153,49 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
 
   // Handle input changes for form fields
   const handleChange = (key, value, type) => {
-    if (type === 'jsonb') {
-      // For jsonb fields, we handle file uploads separately
-      return
-    }
-
-    // Convert value based on field type
+    if (type === 'jsonb') return
     let processedValue = value
     if (type === 'integer') {
-      // Convert to integer, use 0 if empty or invalid
       processedValue = value === '' ? 0 : parseInt(value, 10) || 0
     } else if (type === 'boolean') {
       processedValue = Boolean(value)
     }
-
     setFormData((prev) => ({ ...prev, [key]: processedValue }))
+  }
+
+  // Handle rich text change
+  const handleRichTextChange = (key, value) => {
+    setFormData((prev) => ({ ...prev, [key]: value }))
+  }
+
+  // Toggle rich text mode for a field
+  const handleToggleRichText = (field) => {
+    setRichTextFields((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }))
+    setFormData((prev) => ({
+      ...prev,
+      [field]: '', // Reset the content when switching modes for clarity
+    }))
   }
 
   // Submit new record
   const handleSubmit = async (e) => {
     e.preventDefault()
-
-    if (!image) {
-      setStatus('Please provide both a name and an image.')
-      return
+    if (!selectedCollection) return
+    const payload = {}
+    for (const key in formData) {
+      const val = formData[key]
+      if (val !== '' && val != null) payload[key] = val
     }
-
-    const formData = new FormData()
-    // Get the name field from form data, or use a default if not found
-    const nameField = schema.find((field) =>
-      field.column_name.toLowerCase().includes('name')
-    )
-    formData.append('name', formData[nameField?.column_name] || 'Unnamed')
-
-    formData.append('image', image)
-
-    // Use the currently selected collection
-    formData.append('collectionName', selectedCollection)
-
-    // Find the image field from schema
-    const imageField = schema.find((field) => field.data_type === 'jsonb')
-    formData.append('imageField', imageField?.column_name || 'image')
-
     try {
-      const response = await fetch(
-        'http://localhost:8000/api/collection/insert',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      )
-
-      console.log(response)
-
-      if (response.ok) {
-        setStatus('Upload successful!')
-
-        // Reset all form states
-        setImage(null)
-        setFormData({})
-        setUploadedFiles({})
-        setSelectedCollection(null) // This will close the form
-
-        // Refresh the collections list
-        try {
-          const res = await getAllCollections()
-          const list = res?.data?.data?.get_all_collections || []
-          setCollections(list.map((c) => c.collection_name))
-        } catch (refreshErr) {
-          console.error('Error refreshing collections:', refreshErr)
-        }
-
-        showAppMessage('Record inserted successfully', 'success')
-      } else {
-        const errorText = await response.text()
-        setStatus(`Upload failed: ${errorText}`)
-      }
+      await insertDataToCollection(selectedCollection, payload)
+      showAppMessage('Record inserted successfully', 'success')
+      setFormData({})
     } catch (err) {
       console.error(err)
       showAppMessage('Failed to insert data', 'error')
-    }
-  }
-
-  // handle image change
-  const handleImageChange = (e) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      setImage(file)
     }
   }
 
@@ -273,17 +212,70 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
     startIdx + ITEMS_PER_PAGE
   )
 
-  // Add rich text handlers
-  const handleToggleRichText = (field) => {
-    setRichTextFields((prev) => ({
-      ...prev,
-      [field]: !prev[field],
-    }))
-    // Reset the content when switching modes
-    setFormData((prev) => ({
-      ...prev,
-      [field]: '',
-    }))
+  const handleImageChange = async (fieldName, event) => {
+    const files = Array.from(event.target.files)
+    const isMultiple = schema.find(
+      (field) => field.column_name === fieldName
+    )?.is_multiple
+
+    if (!isMultiple && files.length > 1) {
+      showAppMessage('This field only accepts a single image')
+      return
+    }
+
+    setUploadingImages((prev) => ({ ...prev, [fieldName]: true }))
+
+    try {
+      const formData = new FormData()
+      files.forEach((file) => {
+        formData.append('image', file)
+      })
+
+      const response = await axios.post(
+        'http://localhost:8000/api/upload',
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      const uploadedImages = response.data.urls || []
+
+      // Update form data with image URLs
+      setFormData((prev) => ({
+        ...prev,
+        [fieldName]: isMultiple
+          ? [...(prev[fieldName] || []), ...uploadedImages]
+          : uploadedImages[0],
+      }))
+
+      // Update previews
+      const newPreviews = {}
+      files.forEach((file, index) => {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          newPreviews[`${fieldName}_${Date.now()}_${index}`] = reader.result
+          setImagePreviews((prev) => ({ ...prev, ...newPreviews }))
+        }
+        reader.readAsDataURL(file)
+      })
+    } catch (error) {
+      console.error('Error uploading image:', error)
+      showAppMessage('Failed to upload image')
+    } finally {
+      setUploadingImages((prev) => ({ ...prev, [fieldName]: false }))
+    }
+  }
+
+  const removeImage = (fieldName, index) => {
+    setFormData((prev) => {
+      const newValue = Array.isArray(prev[fieldName])
+        ? prev[fieldName].filter((_, i) => i !== index)
+        : null
+      return { ...prev, [fieldName]: newValue }
+    })
   }
 
   return (
@@ -291,8 +283,7 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
       <h2 className="text-xl font-bold text-[#0f172a] mb-4">
         Insert Record into Tables
       </h2>
-
-      {/* Search + Pagination for collection list */}
+      {/* Search + Pagination */}
       <div className="flex justify-between items-center mb-6">
         <input
           type="text"
@@ -354,7 +345,7 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
         </div>
       </div>
 
-      {/* Grid of collection "cards" with Insert button */}
+      {/* Grid of collection "cards" */}
       {filtered.length === 0 ? (
         <p className="text-sm text-gray-500 mb-6">
           {collectionSearch
@@ -384,7 +375,7 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
         </div>
       )}
 
-      {/* Render insert form when a table is selected */}
+      {/* Render insert form */}
       {selectedCollection && (
         <div className="border-t pt-6">
           <h3 className="text-lg font-semibold mb-4">
@@ -404,11 +395,12 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                       (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
                   </label>
 
+                  {/* For text: toggle between normal input and rich text */}
                   {field.data_type === 'text' ? (
                     <div>
                       <div className="flex items-center mb-2">
                         <label className="mr-2 text-xs font-semibold text-gray-500">
-                          Use Rich Text Editor
+                          Use Rich Text
                         </label>
                         <input
                           type="checkbox"
@@ -429,16 +421,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                                 ...prev,
                                 [field.column_name]: content,
                               }))
-                            }}
-                            className="bg-white"
-                            modules={{
-                              toolbar: [
-                                [{ header: [1, 2, 3, false] }],
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{ list: 'ordered' }, { list: 'bullet' }],
-                                ['link', 'image'],
-                                ['clean'],
-                              ],
                             }}
                           />
                         </Suspense>
@@ -465,14 +447,13 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                           type="file"
                           multiple={field.is_multiple}
                           accept="image/*"
-                          onChange={handleImageChange}
-                          /* onChange={(e) =>
+                          onChange={(e) =>
                             handleFileUpload(
                               field.column_name,
                               e.target.files,
                               field.is_multiple
                             )
-                          } */
+                          }
                           className="block w-full text-sm text-gray-500
                             file:mr-4 file:py-2 file:px-4
                             file:rounded-md file:border-0
@@ -481,8 +462,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                             hover:file:bg-blue-100"
                         />
                       </div>
-
-                      {/* Display uploaded files */}
                       {uploadedFiles[field.column_name]?.length > 0 && (
                         <div className="mt-2 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                           {uploadedFiles[field.column_name].map(
@@ -559,7 +538,6 @@ const InsertRecordForm = ({ collectionName, onSuccess }) => {
                   )}
                 </div>
               ))}
-
               <button
                 type="submit"
                 className="bg-[#e75024] text-white px-4 py-2 rounded-md hover:bg-[#a30220]"

@@ -1,15 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Users,
-  Settings,
-  Table,
-  FileText,
-  Wrench,
-  PlusSquare,
-  Eye,
-  Code,
-} from 'lucide-react' 
+import { LayoutDashboard, PlusSquare, Eye } from 'lucide-react'
 
 const Sidebar = ({ mobile }) => {
   const { pathname } = useLocation()
@@ -20,9 +10,16 @@ const Sidebar = ({ mobile }) => {
       label: 'Dashboard',
       icon: <LayoutDashboard size={28} />,
     },
-   
-    { to: '/content-manager/insert-data', label: 'Add data', icon: <PlusSquare size={28} /> },
-    { to: '/content-manager/collection-view', label: 'Show Tables', icon: <Eye size={28} /> },
+    {
+      to: '/content-manager/insert-data',
+      label: 'Add data',
+      icon: <PlusSquare size={28} />,
+    },
+    {
+      to: '/content-manager/collection-view',
+      label: 'Show Tables',
+      icon: <Eye size={28} />,
+    },
   ]
 
   return (

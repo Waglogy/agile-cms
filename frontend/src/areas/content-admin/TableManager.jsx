@@ -71,7 +71,12 @@ const TableManager = () => {
   const handleAddColumn = () => {
     setUpdatedFields([
       ...updatedFields,
-      { name: '', type: '', comment: '', action: 'add' },
+      {
+        name: '',
+        type: '',
+        comment: '',
+        action: 'add',
+      },
     ])
   }
 
@@ -92,7 +97,6 @@ const TableManager = () => {
           columnName: field.originalName || field.name,
         }
 
-        // Drop column
         if (field.action === 'drop') {
           payload.columnName = field.originalName
           payload.action = 'drop'
@@ -100,7 +104,6 @@ const TableManager = () => {
           continue
         }
 
-        // Add column
         if (field.action === 'add') {
           if (!SUPPORTED_TYPES.includes(type)) {
             showAppMessage(
@@ -116,21 +119,18 @@ const TableManager = () => {
           continue
         }
 
-        // Rename column
         if (field.originalName !== field.name) {
           payload.action = 'rename'
           payload.newName = field.name
           await alterCollection(payload)
         }
 
-        // Comment update
         if (field.comment?.trim()) {
           payload.action = 'comment'
           payload.comment = field.comment
           await alterCollection(payload)
         }
 
-        // Type change
         if (SUPPORTED_TYPES.includes(type)) {
           payload.action = 'type'
           payload.columnType = type
@@ -264,7 +264,7 @@ const TableManager = () => {
                     <option value="">-- Select Type --</option>
                     {SUPPORTED_TYPES.map((type) => (
                       <option key={type} value={type}>
-                        {type}
+                        {type === 'JSONB' ? 'Image' : type}
                       </option>
                     ))}
                   </select>

@@ -4,17 +4,52 @@ import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
 
+
+
+function constraintToSql(constraints, type) {
+  let parts = []
+  if (!constraints) return ''
+  if (constraints.notNull) parts.push('NOT NULL')
+  if (constraints.unique) parts.push('UNIQUE')
+  if (
+    constraints.defaultValue !== '' &&
+    constraints.defaultValue !== undefined
+  ) {
+    if (type === 'TEXT' || type === 'DATE') {
+      parts.push(`DEFAULT '${constraints.defaultValue}'`)
+    } else if (type === 'BOOLEAN') {
+      parts.push(
+        `DEFAULT ${constraints.defaultValue === 'true' || constraints.defaultValue === true ? 'TRUE' : 'FALSE'}`
+      )
+    } else {
+      parts.push(`DEFAULT ${constraints.defaultValue}`)
+    }
+  }
+  // Optionally, handle min/max (as CHECK constraints)
+  return parts.join(' ')
+}
+
 // Create a new table with the given schema
 export async function createTable(req, res, next) {
   const validation = joiValidator(collectionValidation.createTable, req)
-
   if (!validation.success)
     return next(new AppError(400, 'Validation failed', validation.errors))
 
   try {
+
     const success = await req.queryExecutor.createCollection(
+
+    // 🟢 Transform constraints before saving!
+    const schema = { ...validation.value.schema }
+    for (const fieldName in schema) {
+      const field = schema[fieldName]
+      field.constraints = constraintToSql(field.constraints, field.type)
+    }
+
+    const success = await queryExecutor.createCollection(
+
       validation.value.tableName,
-      validation.value.schema
+      schema
     )
 
     await req.queryExecutor.insertLogEntry(
@@ -22,7 +57,7 @@ export async function createTable(req, res, next) {
       req.user?.email || 'system',
       validation.value.tableName,
       null,
-      validation.value.schema
+      schema // use the schema actually created
     )
 
     return res.json({
@@ -33,6 +68,7 @@ export async function createTable(req, res, next) {
     return next(new AppError(500, 'Failed to create table', err))
   }
 }
+
 
 // Delete a specific collection (table)
 export async function deleteCollection(req, res, next) {
