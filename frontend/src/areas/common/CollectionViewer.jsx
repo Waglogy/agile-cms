@@ -30,6 +30,39 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
     }
   }
 
+  const handleRollback = async (rowId, version) => {
+    try {
+      await axios.post('http://localhost:8000/api/collection/rollback', {
+        tableName: name,
+        id: rowId,
+        version: version - 1,
+      })
+      showAppMessage('Rollback successful!', 'success')
+      window.location.reload()
+    } catch (err) {
+      console.error(err)
+      showAppMessage('Rollback failed', 'error')
+    }
+  }
+
+  const handleArchive = async (rowId) => {
+    try {
+      await axios.post(
+        'http://localhost:8000/api/collection/collection/archive',
+        {
+          tableName: name,
+          id: rowId,
+        }
+      )
+      showAppMessage('Row archived successfully!', 'success')
+      window.location.reload()
+    } catch (err) {
+      console.error(err)
+      showAppMessage('Archiving failed', 'error')
+    }
+  }
+
+
   // Convert various types into renderable strings
   const cleanValue = (value) => {
     if (value === null) return '—'
@@ -166,21 +199,39 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
                     )}
                   </td>
                 ))}
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end">
                   <button
                     onClick={() => onViewDetails({ name, records: [row] })}
-                    className="text-[#e75024] hover:text-[#d90429] mr-2"
+                    className="text-[#e75024] hover:text-[#d90429]"
+                    title="View"
                   >
                     <Eye size={18} />
                   </button>
-                  {row.status === 'draft' && (
+
+                  
                     <button
                       onClick={() => handlePublish(row.id)}
                       className="text-green-600 hover:text-green-800"
                     >
                       Publish
                     </button>
-                  )}
+                 
+
+                  
+                    <button
+                      onClick={() => handleRollback(row.id, row.version)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      Rollback
+                    </button>
+                  
+
+                  <button
+                    onClick={() => handleArchive(row.id)}
+                    className="text-gray-600 hover:text-black"
+                  >
+                    Archive
+                  </button>
                 </td>
               </tr>
             ))}

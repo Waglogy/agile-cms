@@ -14,6 +14,28 @@ const TableDetailView = ({ tableName, records, onClose }) => {
     fetchFilteredData()
   }, [status])
 
+
+const handleArchive = async (id) => {
+  try {
+    const res = await axios.post(
+      'http://localhost:8000/api/collection/archive',
+      {
+        tableName,
+        id,
+      }
+    )
+    if (res.data?.status) {
+      showAppMessage('Archived successfully', 'success')
+      fetchFilteredData()
+    } else {
+      showAppMessage(res.data?.message || 'Archive failed', 'error')
+    }
+  } catch (err) {
+    console.error(err)
+    showAppMessage('Archive failed', 'error')
+  }
+}
+
   const fetchFilteredData = async () => {
     try {
       if (isSingleRecord) {

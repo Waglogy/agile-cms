@@ -339,6 +339,35 @@ export async function getArchivedContent(req, res, next) {
   }
 }
 
+export async function archiveData(req, res, next) {
+  const { tableName, id } = req.body
+
+  if (!tableName || !id) {
+    return next(new AppError(400, 'Missing tableName or id'))
+  }
+
+  try {
+    const success = await queryExecutor.archiveRow(tableName, id)
+    await queryExecutor.insertLogEntry(
+      'archive_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      {}
+    )
+
+    return res.json({
+      status: success,
+      message: success
+        ? 'Row archived successfully'
+        : 'Archiving failed or no update made',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to archive row', err))
+  }
+}
+
+
 // Update existing data in a collection
 export async function updateData(req, res, next) {
   const validation = joiValidator(collectionValidation.updateData, req)

@@ -81,6 +81,11 @@ class QueryExecutorFactory {
     }
     return { success, message }
   }
+  async archiveRow(tableName, id) {
+    const updateQuery = `UPDATE ${tableName} SET status = 'archived' WHERE id = $1`
+    const res = await client.query(updateQuery, [id])
+    return res.rowCount > 0
+  }
 
   async getAllCollections() {
     const result = await client.query('SELECT * FROM get_all_collections()')
