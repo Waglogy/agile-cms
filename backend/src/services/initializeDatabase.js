@@ -2,7 +2,7 @@ import pg from 'pg'
 import envConfig from '../config/env.config.js'
 // import client from '../config/db.config.js'
 
-const { Client } = pg
+const { Client, Pool } = pg
 
 // Connect to PostgreSQL (without specifying database)
 const adminClient = new Client({
@@ -13,9 +13,8 @@ const adminClient = new Client({
   database: 'postgres', // Connect to the default database first
 })
 
-let client
 async function initializeDatabase(db_name) {
-  client = new Client({
+  const client = new Pool({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
     password: envConfig.PG_PASSWORD,
@@ -47,6 +46,7 @@ async function initializeDatabase(db_name) {
 
     // ✅ Connect to the created database
     await client.connect()
+
     // console.log()
     await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
     await client.query(`SET search_path TO agile_cms;`)
@@ -68,7 +68,7 @@ async function initializeDatabase(db_name) {
     if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
       console.log('✅ Database is already initialized. Skipping setup.')
       // await client.end()
-      return
+      return client
     }
 
     console.log('🚀 Running database initialization...')
@@ -1012,10 +1012,12 @@ LANGUAGE sql AS $$
 $$;
 
         `)
+
+    // return the client
+    return client
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
 }
 
 export default initializeDatabase
-export { client }
