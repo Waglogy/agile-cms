@@ -1,12 +1,16 @@
 import express from 'express'
-import apiRouter from './routes/api.routes.js'
 import cors from 'cors'
-import passport from 'passport'
-import helmet from 'helmet'
-import AppError from './utils/AppError.js'
+// import passport from 'passport'
+// import helmet from 'helmet'
+import expressSession from 'express-session'
 import path from 'path'
+import pg from 'pg'
 
-import './utils/JwtStrategy.js'
+// costum packages
+import apiRouter from './routes/api.routes.js'
+import AppError from './utils/AppError.js'
+
+// import './utils/JwtStrategy.js'
 
 const app = express()
 
@@ -30,11 +34,20 @@ app.use(cors({ origin: 'http://localhost:5173' }))
 app.use(express.json({ limit: '50mb' }))
 app.use(express.urlencoded({ limit: '50mb', extended: true }))
 
+// expres-sessions config-setup
+app.use(
+  expressSession({
+    secret: 'RONALDO7SIUUUUUUUUU',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false },
+  })
+)
 // Serve static files from 'uploads'
 app.use('/uploads', express.static(path.resolve('uploads')))
 
 // Passport Initialization
-app.use(passport.initialize())
+// app.use(passport.initialize())
 
 // Mount API Router
 app.use('/api', apiRouter)
@@ -55,6 +68,14 @@ app.use((err, req, res, next) => {
     success: false,
     error: 'Internal Server Error',
   })
+})
+
+export const defaultDbClient = new pg.Client({
+  host: 'localhost',
+  user: 'postgres',
+  port: 5432,
+  database: 'postgres',
+  password: '1234',
 })
 
 export default app

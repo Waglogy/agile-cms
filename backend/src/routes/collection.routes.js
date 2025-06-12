@@ -15,6 +15,8 @@ import {
   getSystemLogs,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
+import injectQueryExecutor from '../middlewares/injectQueryExecutor.js'
+// import injectQueryExecutor from '../middlewares/injectQueryExecutor'
 
 const collectionRouter = Router()
 
@@ -32,7 +34,7 @@ const collectionRouter = Router()
  ** }
  **
  */
-collectionRouter.post('/create', createTable)
+collectionRouter.post('/create', injectQueryExecutor, createTable)
 
 /*
  **
@@ -56,6 +58,7 @@ collectionRouter.post(
       maxCount: 5,
     },
   ]),
+  injectQueryExecutor,
   insertData
 )
 
@@ -74,7 +77,7 @@ collectionRouter.post(
  ** }
  **
  */
-collectionRouter.post('/update', updateData)
+collectionRouter.post('/update', injectQueryExecutor, updateData)
 
 /*
  **
@@ -112,7 +115,7 @@ collectionRouter.post('/delete-collection', deleteCollection)
  it is a GET query -  duhhh :D
 */
 
-collectionRouter.get('/', getAllCollections)
+collectionRouter.get('/', injectQueryExecutor, getAllCollections)
 
 /*
  ** Get a specific collection by name
