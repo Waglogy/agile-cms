@@ -4,11 +4,13 @@ import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
+import { Eye } from 'lucide-react'
+import TableDetailView from './TableDetailView'
 
 /**
- * Renders one collection’s data: search + paginated table + CSV export.
+ * Renders one collection's data: search + paginated table + CSV export.
  */
-const CollectionTable = ({ name, records }) => {
+const CollectionTable = ({ name, records, onViewDetails }) => {
   const ITEMS_PER_PAGE = 5
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -17,7 +19,7 @@ const CollectionTable = ({ name, records }) => {
   const cleanValue = (value) => {
     if (value === null) return '—'
     if (typeof value === 'string') {
-      // ISO date check (contains “T”)
+      // ISO date check (contains "T")
       if (value.includes('T')) {
         const date = new Date(value)
         return date.toLocaleString()
@@ -36,53 +38,45 @@ const CollectionTable = ({ name, records }) => {
   }
 
   // Determines if a string is an image URL or base64
-const isImageUrl = (value) => {
-  if (!value) return false
-  if (typeof value === 'string') {
-    // Detect base64 or image URLs
-    return (
-      value.startsWith('data:image/') ||
-      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
-    )
+  const isImageUrl = (value) => {
+    if (!value) return false
+    if (typeof value === 'string') {
+      // Detect base64 or image URLs
+      return (
+        value.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
+      )
+    }
+    if (typeof value === 'object' && value !== null) {
+      // If any key in the object is a valid image (recursive for thumb/large/medium)
+      return ['thumb', 'large', 'medium'].some(
+        (size) =>
+          value[size] &&
+          ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
+            (typeof value[size] === 'object' &&
+              (isImageUrl(value[size].base64) ||
+                isImageUrl(value[size].imagePath))))
+      )
+    }
+    return false
   }
-  if (typeof value === 'object' && value !== null) {
-    // If any key in the object is a valid image (recursive for thumb/large/medium)
-    return ['thumb', 'large', 'medium'].some(
-      (size) =>
-        value[size] &&
-        ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
-          (typeof value[size] === 'object' &&
-            (isImageUrl(value[size].base64) ||
-              isImageUrl(value[size].imagePath))))
-    )
-  }
-  return false
-}
-const getImageSrc = (value) => {
-  if (!value) return ''
-  if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
-  if (typeof value === 'object' && value !== null) {
-    // Prefer thumb, then large, then medium (customize order as you like)
-    const sizeOrder = ['thumb', 'large', 'medium']
-    for (let size of sizeOrder) {
-      if (value[size]) {
-        // Nested: can be base64 or imagePath string
-        if (typeof value[size] === 'string') return value[size]
-        if (value[size].base64) return value[size].base64
-        if (value[size].imagePath) return value[size].imagePath
+  const getImageSrc = (value) => {
+    if (!value) return ''
+    if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
+    if (typeof value === 'object' && value !== null) {
+      // Prefer thumb, then large, then medium (customize order as you like)
+      const sizeOrder = ['thumb', 'large', 'medium']
+      for (let size of sizeOrder) {
+        if (value[size]) {
+          // Nested: can be base64 or imagePath string
+          if (typeof value[size] === 'string') return value[size]
+          if (value[size].base64) return value[size].base64
+          if (value[size].imagePath) return value[size].imagePath
+        }
       }
     }
+    return ''
   }
-  return ''
-}
-
-
-
-
-
- // Get the actual src (to strip quotes or get src from object)
- 
-
 
   // Filter rows based on searchTerm (case-insensitive)
   const filtered = records.filter((record) =>
@@ -153,7 +147,16 @@ const getImageSrc = (value) => {
 
   return (
     <div className="mb-8">
-      <h3 className="text-lg font-semibold mb-2">{name}</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-lg font-semibold">{name}</h3>
+        <button
+          onClick={() => onViewDetails(name, records)}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+        >
+          <Eye size={20} />
+          View Details
+        </button>
+      </div>
 
       {/* Search box + Export button */}
       <div className="flex items-center justify-between mb-4">
@@ -286,6 +289,7 @@ const CollectionViewer = () => {
   const [loading, setLoading] = useState(true)
   const [collectionSearch, setCollectionSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedTable, setSelectedTable] = useState(null)
   const ITEMS_PER_PAGE_COLLECTIONS = 5
   const { showAppMessage } = useNotification()
 
@@ -356,6 +360,10 @@ const CollectionViewer = () => {
     startIdx + ITEMS_PER_PAGE_COLLECTIONS
   )
 
+  const handleViewDetails = (tableName, records) => {
+    setSelectedTable({ name: tableName, records })
+  }
+
   return (
     <div className="bg-white p-6 rounded-xl shadow border">
       <div className="flex justify-between items-center mb-6">
@@ -389,6 +397,7 @@ const CollectionViewer = () => {
               key={colName}
               name={colName}
               records={recordsMap[colName] || []}
+              onViewDetails={handleViewDetails}
             />
           ))}
 
@@ -448,6 +457,15 @@ const CollectionViewer = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Table Detail View Modal */}
+      {selectedTable && (
+        <TableDetailView
+          tableName={selectedTable.name}
+          records={selectedTable.records}
+          onClose={() => setSelectedTable(null)}
+        />
       )}
     </div>
   )
