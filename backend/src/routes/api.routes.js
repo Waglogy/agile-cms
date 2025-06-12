@@ -67,6 +67,8 @@ apiRouter.post('/init', async (req, res) => {
       message: 'Failed to initialize database',
       error: error.message,
     })
+  } finally {
+    await defaultDbClient.end()
   }
 })
 
@@ -85,7 +87,7 @@ apiRouter.get('/list-databases', async (req, res) => {
     console.log(error)
     await defaultDbClient.end()
   } finally {
-    await defaultDbClient.end()
+    // await defaultDbClient.end()
   }
 })
 
