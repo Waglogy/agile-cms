@@ -4,8 +4,6 @@ import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
 
-
-
 function constraintToSql(constraints, type) {
   let parts = []
   if (!constraints) return ''
@@ -36,9 +34,6 @@ export async function createTable(req, res, next) {
     return next(new AppError(400, 'Validation failed', validation.errors))
 
   try {
-
-    const success = await req.queryExecutor.createCollection(
-
     // 🟢 Transform constraints before saving!
     const schema = { ...validation.value.schema }
     for (const fieldName in schema) {
@@ -46,8 +41,7 @@ export async function createTable(req, res, next) {
       field.constraints = constraintToSql(field.constraints, field.type)
     }
 
-    const success = await queryExecutor.createCollection(
-
+    const success = await req.queryExecutor.createCollection(
       validation.value.tableName,
       schema
     )
@@ -68,7 +62,6 @@ export async function createTable(req, res, next) {
     return next(new AppError(500, 'Failed to create table', err))
   }
 }
-
 
 // Delete a specific collection (table)
 export async function deleteCollection(req, res, next) {
