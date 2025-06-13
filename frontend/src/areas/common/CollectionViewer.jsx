@@ -7,6 +7,15 @@ import { useNotification } from '../../context/NotificationContext'
 import { Eye } from 'lucide-react'
 import TableDetailView from './TableDetailView'
 
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+]
+
 /**
  * Renders one collection's data: search + paginated table + CSV export.
  */
@@ -319,10 +328,16 @@ const CollectionViewer = () => {
         // 1) Get list of collection names
         const res = await getAllCollections()
         const list = res?.data?.data?.get_all_collections || []
-        const names = list.map((c) => c.collection_name)
+        // Filter out excluded tables
+        const names = list
+          .filter(
+            (collection) =>
+              !EXCLUDED_TABLES.includes(collection.collection_name)
+          )
+          .map((c) => c.collection_name)
         setCollections(names)
 
-        // 2) Fetch data for each collection in parallel
+        // 2) Fetch data for each collection in parallel (only for non-excluded tables)
         const allFetches = names.map(async (colName) => {
           try {
             const r = await axios.get(

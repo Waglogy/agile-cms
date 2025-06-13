@@ -22,6 +22,15 @@ const SYSTEM_FIELDS = [
 
 const ITEMS_PER_PAGE = 6
 
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+]
+
 const InsertRecordForm = () => {
   const [collections, setCollections] = useState([]) // [ 'users', 'orders', … ]
   const [collectionSearch, setCollectionSearch] = useState('') // filter text
@@ -41,7 +50,14 @@ const InsertRecordForm = () => {
       try {
         const res = await getAllCollections()
         const list = res?.data?.data?.get_all_collections || []
-        setCollections(list.map((c) => c.collection_name))
+        setCollections(
+          list
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
+            )
+            .map((c) => c.collection_name)
+        )
       } catch (err) {
         console.error(err)
         showAppMessage('Failed to load collections', 'error')

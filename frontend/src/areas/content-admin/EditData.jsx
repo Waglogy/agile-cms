@@ -5,6 +5,16 @@ import { useNotification } from '../../context/NotificationContext'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 
+// Modify the EXCLUDED_TABLES constant
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+]
+
 const CollectionEditor = () => {
   const { showAppMessage } = useNotification()
   const [tables, setTables] = useState([])
@@ -25,6 +35,8 @@ const CollectionEditor = () => {
     'published_at',
     'version',
     'status',
+    'images',
+    ' image_galleries',
   ]
 
   // Filter tables based on search term
@@ -89,7 +101,7 @@ const CollectionEditor = () => {
     }
   }
 
-  // Fetch all table names and their metadata
+  // Modify the useEffect that fetches tables to filter out excluded tables
   useEffect(() => {
     const fetchTables = async () => {
       try {
@@ -97,18 +109,26 @@ const CollectionEditor = () => {
         const res = await axios.get('http://localhost:8000/api/collection')
 
         if (res.data?.data?.get_all_collections) {
-          const tablesData = res.data.data.get_all_collections.map(
-            (collection) => collection.collection_name
-          )
+          const tablesData = res.data.data.get_all_collections
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
+            )
+            .map((collection) => collection.collection_name)
           setTables(tablesData)
 
-          // Store metadata for each table
+          // Store metadata for each table (excluding system tables)
           const metadata = {}
-          res.data.data.get_all_collections.forEach((collection) => {
-            metadata[collection.collection_name] = collection.columns.filter(
-              (col) => !systemFields.includes(col.column_name)
+          res.data.data.get_all_collections
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
             )
-          })
+            .forEach((collection) => {
+              metadata[collection.collection_name] = collection.columns.filter(
+                (col) => !systemFields.includes(col.column_name)
+              )
+            })
           setTableMetadata(metadata)
         }
       } catch (err) {

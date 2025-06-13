@@ -426,7 +426,6 @@ END;
 $$ LANGUAGE plpgsql;
 `)
 
-
     // delete data from table
     await client.query(`
       CREATE OR REPLACE FUNCTION agile_cms.delete_content_type_data(table_name TEXT, record_id INT) RETURNS BOOLEAN AS $$
@@ -980,8 +979,8 @@ CREATE TABLE IF NOT EXISTS agile_cms.images (
   created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
--- 2. image_galleries table
-CREATE TABLE IF NOT EXISTS agile_cms.image_galleries (
+-- 2. utbl_image_galleries table
+CREATE TABLE IF NOT EXISTS agile_cms.utbl_image_galleries (
   image_gallery_id SERIAL     PRIMARY KEY,
   image_id         INT         NOT NULL
     REFERENCES agile_cms.images(image_id)
@@ -990,8 +989,8 @@ CREATE TABLE IF NOT EXISTS agile_cms.image_galleries (
 );
 
 -- 3. Index to speed up joins/filters on image_id
-CREATE INDEX IF NOT EXISTS idx_image_galleries_image_id
-  ON agile_cms.image_galleries(image_id);
+CREATE INDEX IF NOT EXISTS idx_utbl_image_galleries_image_id
+  ON agile_cms.utbl_image_galleries(image_id);
 
 -- 4. FUNCTION: create_image
 CREATE OR REPLACE FUNCTION agile_cms.create_image(
@@ -1030,7 +1029,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql AS $$
 BEGIN
   RETURN QUERY
-    INSERT INTO agile_cms.image_galleries AS ig(image_id, url)
+    INSERT INTO agile_cms.utbl_image_galleries AS ig(image_id, url)
     VALUES (p_image_id, p_url)
     RETURNING
       ig.image_gallery_id,
@@ -1078,19 +1077,19 @@ RETURNS TABLE (
 )
 LANGUAGE sql AS $$
   SELECT image_gallery_id, image_id, url
-    FROM agile_cms.image_galleries
+    FROM agile_cms.utbl_image_galleries
    WHERE image_gallery_id = p_image_gallery_id;
 $$;
 
 -- 9. FUNCTION: list all gallery entries
-CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries()
-RETURNS SETOF agile_cms.image_galleries
+CREATE OR REPLACE FUNCTION agile_cms.list_utbl_image_galleries()
+RETURNS SETOF agile_cms.utbl_image_galleries
 LANGUAGE sql AS $$
-  SELECT * FROM agile_cms.image_galleries;
+  SELECT * FROM agile_cms.utbl_image_galleries;
 $$;
 
 -- 10. FUNCTION: list all gallery entries for a given image
-CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries_by_image(
+CREATE OR REPLACE FUNCTION agile_cms.list_utbl_image_galleries_by_image(
   p_image_id INT
 )
 RETURNS TABLE (
@@ -1100,7 +1099,7 @@ RETURNS TABLE (
 )
 LANGUAGE sql AS $$
   SELECT image_gallery_id, image_id, url
-    FROM agile_cms.image_galleries
+    FROM agile_cms.utbl_image_galleries
    WHERE image_id = p_image_id;
 $$;
 
@@ -1123,7 +1122,7 @@ LANGUAGE sql AS $$
     ig.image_gallery_id,
     ig.url
   FROM agile_cms.images AS i
-  LEFT JOIN agile_cms.image_galleries AS ig
+  LEFT JOIN agile_cms.utbl_image_galleries AS ig
     ON i.image_id = ig.image_id;
 $$;
 

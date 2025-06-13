@@ -13,7 +13,7 @@ class QueryExecutorFactory {
 
   async createCollection(tableName, schema) {
     const result = await client.query('SELECT create_content_type($1, $2)', [
-      tableName,
+      `ubtl_${tableName}`,
       schema,
     ])
     await this.insertLogEntry('create_table', 'system', tableName, null, {
@@ -158,10 +158,10 @@ class QueryExecutorFactory {
     SELECT 
       test.*,
       img.*,
-      json_agg(img_gal.*) AS image_galleries
+      json_agg(img_gal.*) AS utbl_image_galleries
     FROM agile_cms.${tableName} AS test
     JOIN agile_cms.images AS img ON test.id = img.image_id
-    JOIN agile_cms.image_galleries AS img_gal ON img.image_id = img_gal.image_id
+    JOIN agile_cms.utbl_image_galleries AS img_gal ON img.image_id = img_gal.image_id
     GROUP BY test.id, img.image_id
   `)
 
@@ -333,7 +333,7 @@ class QueryExecutorFactory {
    */
   async listImageGalleries() {
     const result = await client.query(
-      'SELECT * FROM agile_cms.list_image_galleries()'
+      'SELECT * FROM agile_cms.list_utbl_image_galleries()'
     )
     return result.rows
   }
@@ -343,7 +343,7 @@ class QueryExecutorFactory {
    */
   async listImageGalleriesByImage(imageId) {
     const result = await client.query(
-      'SELECT * FROM agile_cms.list_image_galleries_by_image($1)',
+      'SELECT * FROM agile_cms.list_utbl_image_galleries_by_image($1)',
       [imageId]
     )
     return result.rows
