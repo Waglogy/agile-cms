@@ -29,6 +29,19 @@ const CollectionEditor = () => {
     table.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  // Add this utility function at the top level of the component
+  const cleanDataValue = (value) => {
+    if (typeof value !== 'string') return value
+
+    // Remove extra quotes, PostgreSQL Versioning text, and clean up the string
+    return value
+      .replace(/^"|"$/g, '') // Remove surrounding quotes
+      .replace(/PostgreSQL Versioning/g, '') // Remove PostgreSQL Versioning text
+      .replace(/\t/g, '') // Remove tab characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim() // Remove leading/trailing whitespace
+  }
+
   // Delete entire collection/table
   const deleteCollection = async () => {
     if (!selectedTable) return
@@ -114,7 +127,15 @@ const CollectionEditor = () => {
         const res = await axios.get(
           `http://localhost:8000/api/collection/data/${selectedTable}?files=false`
         )
-        setRecords(res.data.data || [])
+        // Clean the data when it's received
+        const cleanedRecords = (res.data.data || []).map((record) => {
+          const cleanedRecord = {}
+          Object.keys(record).forEach((key) => {
+            cleanedRecord[key] = cleanDataValue(record[key])
+          })
+          return cleanedRecord
+        })
+        setRecords(cleanedRecords)
       } catch (err) {
         console.error(err)
         showAppMessage(`Failed to fetch data for ${selectedTable}`, 'error')
@@ -146,7 +167,7 @@ const CollectionEditor = () => {
 
     Object.keys(updates).forEach((key) => {
       if (updates[key] !== original[key]) {
-        updateData[key] = updates[key]
+        updateData[key] = cleanDataValue(updates[key])
       }
     })
 
@@ -165,7 +186,7 @@ const CollectionEditor = () => {
 
       showAppMessage('Row updated successfully.', 'success')
 
-      // Update local state
+      // Update local state with cleaned data
       setRecords((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...updateData } : r))
       )
@@ -332,7 +353,7 @@ const CollectionEditor = () => {
                                   className="w-full border rounded px-2 py-1"
                                 />
                               ) : (
-                                String(row[col])
+                                cleanDataValue(String(row[col]))
                               )}
                             </td>
                           ))}

@@ -383,10 +383,6 @@ class QueryExecutorFactory {
   }
 }
 
-
-
-
-
 // Export a single instance
 const queryExecutor = new QueryExecutorFactory()
 Object.freeze(queryExecutor) // Prevent modifications to the instance

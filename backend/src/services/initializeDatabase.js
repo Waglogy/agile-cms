@@ -115,8 +115,7 @@ async function initializeDatabase(db_name) {
   $$ LANGUAGE plpgsql;
 `)
 
-
-await client.query(`
+    await client.query(`
   CREATE TABLE IF NOT EXISTS agile_cms.content_versions (
   id SERIAL PRIMARY KEY,
   table_name TEXT NOT NULL,
@@ -127,7 +126,7 @@ await client.query(`
 );
 `)
 
-await client.query(`
+    await client.query(`
   CREATE OR REPLACE FUNCTION agile_cms.save_content_version(
   p_table TEXT,
   p_id INT,
@@ -206,7 +205,7 @@ BEGIN
     END
   );
 
-  -- 3) Loop to COMMENT on each user-defined column’s is_multiple flag
+  -- 3) Loop to COMMENT on each user-defined column's is_multiple flag
   FOR col_name, column_def IN
     SELECT js.key, js.value
     FROM jsonb_each(schema_def) AS js(key, value)
@@ -383,19 +382,25 @@ BEGIN
     SELECT key, value FROM jsonb_each(p_data)
   LOOP
     v_cols := v_cols || quote_ident(col_name) || ', ';
-   v_vals := v_vals || quote_literal(col_val::text)::TEXT
-      || CASE
-           WHEN (
-             SELECT data_type = 'jsonb'
-             FROM information_schema.columns
-             WHERE table_name  = p_table_name
-               AND column_name = col_name
-             LIMIT 1
-           )
-           THEN '::jsonb'
-           ELSE ''
-         END
-      || ', ';
+
+    v_vals := v_vals || 
+      CASE
+        WHEN jsonb_typeof(col_val) = 'string' THEN quote_literal(trim(both '"' from col_val::TEXT))
+        WHEN jsonb_typeof(col_val) = 'null' THEN 'NULL'
+        ELSE col_val::TEXT
+      END
+    || 
+      CASE
+        WHEN (
+          SELECT data_type = 'jsonb'
+          FROM information_schema.columns
+          WHERE table_name = p_table_name AND column_name = col_name
+          LIMIT 1
+        )
+        THEN '::jsonb'
+        ELSE ''
+      END
+    || ', ';
   END LOOP;
 
   -- 3) Trim trailing commas
@@ -409,7 +414,7 @@ BEGIN
   -- 4) Insert and return the full row
   EXECUTE format(
     'INSERT INTO %I AS t (%s) VALUES (%s)
-       RETURNING to_jsonb(t)',
+     RETURNING to_jsonb(t)',
     p_table_name,
     v_cols,
     v_vals
@@ -419,7 +424,8 @@ BEGIN
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
-    `)
+`)
+
 
     // delete data from table
     await client.query(`
@@ -490,26 +496,47 @@ $$ LANGUAGE plpgsql;
           update_pairs TEXT := '';
           column_entry RECORD;
           row_count INT;
-        result JSONB;
+          result JSONB;
+          current_version INT;
       BEGIN
+          -- Get current version
+          EXECUTE format('SELECT version FROM %I WHERE id = %s', table_name, id) INTO current_version;
+          IF current_version IS NULL THEN
+              RETURN FALSE;
+          END IF;
+
+          -- Build update pairs
           FOR column_entry IN SELECT * FROM jsonb_each(update_data) LOOP
-              update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' || quote_literal(column_entry.value) || ', ';
+              IF column_entry.key != 'version' THEN  -- Skip version in update pairs
+                  update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' || 
+                      CASE 
+                          WHEN jsonb_typeof(column_entry.value) = 'string' THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
+                          WHEN jsonb_typeof(column_entry.value) = 'null' THEN 'NULL'
+                          ELSE column_entry.value::TEXT
+                      END || ', ';
+              END IF;
           END LOOP;
-          update_pairs := TRIM(BOTH ', ' FROM update_pairs);
-          IF update_pairs = '' THEN RETURN FALSE; END IF;
-EXECUTE format('SELECT to_jsonb(t) FROM %I t WHERE id = %s', table_name, id) INTO result;
-PERFORM agile_cms.save_content_version(table_name, id, result, (
-  SELECT version FROM jsonb_each(update_data)
-));
+          
+          -- Add version increment and updated_at
+          update_pairs := update_pairs || 'version = ' || (current_version + 1) || ', updated_at = NOW()';
+          
+          -- Get current data for versioning
+          EXECUTE format('SELECT to_jsonb(t) FROM %I t WHERE id = %s', table_name, id) INTO result;
+          
+          -- Save version
+          PERFORM agile_cms.save_content_version(table_name, id, result, current_version);
+          
+          -- Execute update
+          EXECUTE format('UPDATE %I SET %s WHERE id = %s', table_name, update_pairs, id);
+          
           GET DIAGNOSTICS row_count = ROW_COUNT;
           RETURN row_count > 0;
-      EXCEPTION WHEN OTHERS THEN RETURN FALSE;
+      EXCEPTION WHEN OTHERS THEN 
+          RAISE NOTICE 'Error updating: %', SQLERRM;
+          RETURN FALSE;
       END;
       $$ LANGUAGE plpgsql;
     `)
-
-
-
 
     await client.query(`
       CREATE OR REPLACE FUNCTION agile_cms.rollback_content_type_row(
