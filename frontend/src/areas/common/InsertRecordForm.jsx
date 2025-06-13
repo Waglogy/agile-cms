@@ -155,6 +155,54 @@ const InsertRecordForm = () => {
     })
   }
 
+  // Submit new record
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+
+    // Create a new FormData object
+    const submitData = new FormData()
+
+    // Add all form fields to FormData
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        submitData.append(key, value)
+      }
+    })
+
+    // Add the image if it exists
+    if (image) {
+      submitData.append('image', image)
+    }
+
+    // Add the collection name
+    submitData.append('collectionName', selectedCollection)
+
+    try {
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/insert',
+        submitData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record inserted successfully', 'success')
+        // Clear form after successful submission
+        setFormData({})
+        setImage(null)
+        setUploadedFiles({})
+      } else {
+        throw new Error(response.data.message || 'Failed to insert record')
+      }
+    } catch (err) {
+      console.error('Error inserting record:', err)
+      showAppMessage(err.message || 'Failed to insert record', 'error')
+    }
+  }
+
   // Handle input changes for form fields
   const handleChange = (key, value, type) => {
     if (type === 'jsonb') {
@@ -165,65 +213,16 @@ const InsertRecordForm = () => {
     // Convert value based on field type
     let processedValue = value
     if (type === 'integer') {
-      // Convert to integer, use 0 if empty or invalid
-      processedValue = value === '' ? 0 : parseInt(value, 10) || 0
+      // Convert to integer, use null if empty or invalid
+      processedValue = value === '' ? null : parseInt(value, 10) || null
     } else if (type === 'boolean') {
       processedValue = Boolean(value)
+    } else if (value === '') {
+      // Set empty string values to null
+      processedValue = null
     }
 
     setFormData((prev) => ({ ...prev, [key]: processedValue }))
-  }
-
-  // Submit new record
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (!image) {
-      setStatus('Please provide both a name and an image.')
-      return
-    }
-
-    const formData = new FormData()
-    // Get the name field from form data, or use a default if not found
-    const nameField = schema.find((field) =>
-      field.column_name.toLowerCase().includes('name')
-    )
-    formData.append('name', formData[nameField?.column_name] || 'Unnamed')
-
-    formData.append('image', image)
-
-    // Use the currently selected collection
-    formData.append('collectionName', selectedCollection)
-
-    // Find the image field from schema
-    const imageField = schema.find((field) => field.data_type === 'jsonb')
-    formData.append('imageField', imageField?.column_name || 'image')
-
-    try {
-      const response = await fetch(
-        'http://localhost:8000/api/collection/insert',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      )
-
-      console.log(response)
-
-      if (response.ok) {
-        setStatus('Upload successful!')
-      } else {
-        const errorText = await response.text()
-        setStatus(`Upload failed: ${errorText}`)
-      }
-      /* await insertDataToCollection(selectedCollection,)
-      showAppMessage('Record inserted successfully', 'success')
-      // After inserting, clear form and optionally re-fetch schema if needed
-      setFormData({}) */
-    } catch (err) {
-      console.error(err)
-      showAppMessage('Failed to insert data', 'error')
-    }
   }
 
   // handle image change
@@ -363,6 +362,9 @@ const InsertRecordForm = () => {
                     {field.column_name}
                     {field.data_type === 'jsonb' &&
                       (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
+                    {!field.is_nullable && (
+                      <span className="text-red-500">*</span>
+                    )}
                   </label>
 
                   {field.data_type === 'jsonb' ? (
@@ -439,6 +441,7 @@ const InsertRecordForm = () => {
                           ? 'number'
                           : 'text'
                       }
+                      required={!field.is_nullable}
                       checked={
                         field.data_type === 'boolean'
                           ? formData[field.column_name] === true
@@ -460,8 +463,10 @@ const InsertRecordForm = () => {
                       }
                       className={`w-full px-3 py-2 border rounded-md ${
                         field.data_type === 'boolean' ? 'w-4 h-4' : ''
+                      } ${!field.is_nullable ? 'required' : ''}`}
+                      placeholder={`Enter ${field.column_name}${
+                        !field.is_nullable ? ' (required)' : ''
                       }`}
-                      placeholder={`Enter ${field.column_name}`}
                     />
                   )}
                 </div>

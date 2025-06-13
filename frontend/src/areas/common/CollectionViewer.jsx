@@ -12,56 +12,86 @@ import TableDetailView from './TableDetailView'
  */
 const CollectionTable = ({ name, records, onViewDetails }) => {
   const { showAppMessage } = useNotification()
+  const [isLoading, setIsLoading] = useState(false)
   const ITEMS_PER_PAGE = 5
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
   const handlePublish = async (rowId) => {
     try {
-      await axios.post('http://localhost:8000/api/collection/publish', {
-        tableName: name,
-        id: rowId,
-      })
-      showAppMessage('Row published successfully!', 'success')
-      window.location.reload()
+      setIsLoading(true)
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/publish',
+        {
+          tableName: name,
+          id: rowId,
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record published successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to publish record')
+      }
     } catch (err) {
-      console.error(err)
-      showAppMessage('Failed to publish row', 'error')
+      console.error('Error publishing record:', err)
+      showAppMessage(err.message || 'Failed to publish record', 'error')
+    } finally {
+      setIsLoading(false)
     }
   }
 
-  const handleRollback = async (rowId, version) => {
+  const handleRollback = async (rowId, currentVersion) => {
     try {
-      await axios.post('http://localhost:8000/api/collection/rollback', {
-        tableName: name,
-        id: rowId,
-        version: version - 1,
-      })
-      showAppMessage('Rollback successful!', 'success')
-      window.location.reload()
+      setIsLoading(true)
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/rollback',
+        {
+          tableName: name,
+          id: rowId,
+          version: currentVersion - 1, // Rollback to previous version
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record rolled back successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to rollback record')
+      }
     } catch (err) {
-      console.error(err)
-      showAppMessage('Rollback failed', 'error')
+      console.error('Error rolling back record:', err)
+      showAppMessage(err.message || 'Failed to rollback record', 'error')
+    } finally {
+      setIsLoading(false)
     }
   }
 
   const handleArchive = async (rowId) => {
     try {
-      await axios.post(
+      setIsLoading(true)
+      const response = await axios.post(
         'http://localhost:8000/api/collection/collection/archive',
         {
           tableName: name,
           id: rowId,
         }
       )
-      showAppMessage('Row archived successfully!', 'success')
-      window.location.reload()
+
+      if (response.data.status) {
+        showAppMessage('Record archived successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to archive record')
+      }
     } catch (err) {
-      console.error(err)
-      showAppMessage('Archiving failed', 'error')
+      console.error('Error archiving record:', err)
+      showAppMessage(err.message || 'Failed to archive record', 'error')
+    } finally {
+      setIsLoading(false)
     }
   }
-
 
   // Convert various types into renderable strings
   const cleanValue = (value) => {
@@ -208,30 +238,35 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
                     <Eye size={18} />
                   </button>
 
-                  
+                  {row.status !== 'published' && (
                     <button
                       onClick={() => handlePublish(row.id)}
-                      className="text-green-600 hover:text-green-800"
+                      disabled={isLoading}
+                      className="text-green-600 hover:text-green-800 disabled:opacity-50"
                     >
                       Publish
                     </button>
-                 
+                  )}
 
-                  
+                  {row.version > 1 && (
                     <button
                       onClick={() => handleRollback(row.id, row.version)}
-                      className="text-blue-600 hover:text-blue-800"
+                      disabled={isLoading}
+                      className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
                     >
-                      Rollback
+                      Rollback to v{row.version - 1}
                     </button>
-                  
+                  )}
 
-                  <button
-                    onClick={() => handleArchive(row.id)}
-                    className="text-gray-600 hover:text-black"
-                  >
-                    Archive
-                  </button>
+                  {row.status !== 'archived' && (
+                    <button
+                      onClick={() => handleArchive(row.id)}
+                      disabled={isLoading}
+                      className="text-gray-600 hover:text-black disabled:opacity-50"
+                    >
+                      Archive
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}

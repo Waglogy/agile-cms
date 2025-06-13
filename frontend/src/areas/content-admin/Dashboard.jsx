@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { LayoutDashboard, FileText, Users, Plus } from 'lucide-react'
 import DashboardLayout from '../common/DashboardLayout'
-import ContentList from './ContentList'
 import axios from 'axios'
 
 const StatCard = ({ icon: Icon, title, value }) => (
@@ -93,9 +92,7 @@ const AdminDashboard = () => {
           <StatCard key={i} {...stat} />
         ))}
       </div>
-      <div className="max-w-6xl mx-auto p-6">
-        <ContentList tableName="tbl_articles" />
-      </div>
+     
       {/* Recent Tables */}
       <div className="bg-white rounded-xl p-4 shadow-sm border my-6">
         <h2 className="text-lg font-semibold mb-2 text-[#d90429]">
