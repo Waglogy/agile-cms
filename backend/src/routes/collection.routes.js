@@ -1,18 +1,18 @@
-import { Router } from 'express'
+import {Router} from 'express'
 import {
-  alterCollection,
-  createTable,
-  deleteAttributeFromCollection,
-  deleteCollection,
-  deleteData,
-  getAllCollections,
-  getCollectionByName,
-  getCollectionData,
-  insertData,
-  updateData,
-  publishData,
-  getPublishedContent,
-  getSystemLogs,
+    alterCollection,
+    createTable,
+    deleteAttributeFromCollection,
+    deleteCollection,
+    deleteData,
+    getAllCollections,
+    getCollectionByName,
+    getCollectionData,
+    insertData,
+    updateData,
+    publishData,
+    getPublishedContent,
+    getSystemLogs,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 import injectQueryExecutor from '../middlewares/injectQueryExecutor.js'
@@ -52,15 +52,16 @@ collectionRouter.post('/create', requireDatabaseSelection, injectQueryExecutor, 
  **
  */
 collectionRouter.post(
-  '/insert',
-  upload.fields([
-    {
-      name: 'image',
-      maxCount: 5,
-    },
-  ]),
-  injectQueryExecutor,
-  insertData
+    '/insert',
+    /* upload.fields([
+       {
+         name: 'image',
+         maxCount: 5,
+       },
+     ]),*/
+    upload.any(),
+    injectQueryExecutor,
+    insertData
 )
 
 /*
@@ -95,35 +96,35 @@ collectionRouter.post('/delete', injectQueryExecutor, deleteData)
 
 /**
  {
-  "tableName": "blogs",
-  "columnName": "likes",
-  "columnType": "INTEGER",
-  "constraints": "DEFAULT 0"
-}
-*/
+ "tableName": "blogs",
+ "columnName": "likes",
+ "columnType": "INTEGER",
+ "constraints": "DEFAULT 0"
+ }
+ */
 
 collectionRouter.post('/alter/column', injectQueryExecutor, alterCollection)
 
 /**
-{
-    "collectionName":"blogs"
-}
-*/
+ {
+ "collectionName":"blogs"
+ }
+ */
 
 collectionRouter.post(
-  '/delete-collection',
-  injectQueryExecutor,
-  deleteCollection
+    '/delete-collection',
+    injectQueryExecutor,
+    deleteCollection
 )
 
 /**
  it is a GET query -  duhhh :D
-*/
+ */
 
 collectionRouter.get(
-  '/',
-  injectQueryExecutor,
-  getAllCollections
+    '/',
+    injectQueryExecutor,
+    getAllCollections
 )
 
 /*
@@ -135,9 +136,9 @@ collectionRouter.get('/:tableName', injectQueryExecutor, getCollectionByName)
  ** Delete an attribute (column) from a collection
  */
 collectionRouter.post(
-  '/attribute/delete',
-  injectQueryExecutor,
-  deleteAttributeFromCollection
+    '/attribute/delete',
+    injectQueryExecutor,
+    deleteAttributeFromCollection
 )
 
 /*
@@ -147,9 +148,9 @@ collectionRouter.get('/data/:tableName', injectQueryExecutor, getCollectionData)
 
 collectionRouter.post('/publish', injectQueryExecutor, publishData)
 collectionRouter.get(
-  '/published/:tableName',
-  injectQueryExecutor,
-  getPublishedContent
+    '/published/:tableName',
+    injectQueryExecutor,
+    getPublishedContent
 )
 collectionRouter.get('/logs/system-logs', injectQueryExecutor, getSystemLogs)
 

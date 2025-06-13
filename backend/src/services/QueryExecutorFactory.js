@@ -18,8 +18,8 @@ class QueryExecutor {
 
   async insertData(tableName, data) {
     const result = await this.client.query(
-      'SELECT insert_into_content_type($1, $2)',
-      [tableName, data]
+      'SELECT agile_cms.insert_into_content_type($1, $2)',
+      [String(tableName).toString(), data]
     )
     const inserted = result.rows[0].insert_into_content_type
     await this.insertLogEntry('create_row', 'system', tableName, inserted.id, {
@@ -30,7 +30,7 @@ class QueryExecutor {
 
   async updateData(tableName, id, updateData) {
     const result = await this.client.query(
-      'SELECT update_content_type_data($1, $2, $3)',
+      'SELECT agile_cms.update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
     await this.insertLogEntry('update_row', 'system', tableName, id, {
@@ -109,7 +109,7 @@ class QueryExecutor {
 
   async getCollectionByName(tableName) {
     const result = await this.client.query(
-      'SELECT get_collection_by_name($1)',
+      'SELECT agile_cms.get_collection_by_name($1)',
       [tableName]
     )
 

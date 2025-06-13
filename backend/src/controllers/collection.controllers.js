@@ -191,86 +191,107 @@ export async function getCollectionData(req, res, next) {
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
-    const { collectionName, imageField, ...body } = req.body
-
+    // 1) Required params
+    const { collectionName, ...body } = req.body;
     if (!collectionName) {
-      return next(
-        new AppError(400, 'Data insert failed', 'Please enter collection name')
-      )
+      return next(new AppError(
+          400,
+          'Data insert failed',
+          'Please enter collection name'
+      ));
     }
 
-    // 1) make sure the collection exists
+    // 2) Ensure the collection exists
     const collection = await req.queryExecutor.getCollectionByName(
-      String(collectionName).toString()
-    )
+        String(collectionName)
+    );
     if (!collection) {
-      return next(
-        new AppError(
+      return next(new AppError(
           404,
           'Collection not found',
           `No collection named "${collectionName}"`
-        )
-      )
+      ));
     }
 
-    // 3) insert the row
-    const payload = { ...body }
-    const insertResult = await req.queryExecutor.insertData(
-      collectionName,
-      payload
-    )
+    // 3) Insert the main row (all non-file fields)
+    const payload = { ...body };
+    const insertResult = await req.queryExecutor.insertData(collectionName, payload);
     if (!insertResult) {
-      return res
-        .status(500)
-        .json({ status: false, message: 'Data insertion failed' })
+      return res.status(500).json({
+        status: false,
+        message: 'Data insertion failed'
+      });
+    }
+    const newRecordId = insertResult.id;
+
+    // 4) Group uploaded files by field name
+    //    Multer with upload.any() gives you req.files as an array
+    const filesArray = Array.isArray(req.files) ? req.files : [];
+    const fileMap = {};
+    for (const file of filesArray) {
+      if (!fileMap[file.fieldname]) fileMap[file.fieldname] = [];
+      fileMap[file.fieldname].push(file);
     }
 
-    const newRecordId = insertResult.id // inserted data on the main table.
+    // 5) Process each dynamic file‐field
+    for (const [fieldName, files] of Object.entries(fileMap)) {
+      // a) upload raw files (your existing uploader)
+      const uploadContainers = await imageUploader(files);
+      //    uploadContainers is assumed to be an array of JSONB‐ready objects
 
-    const rawFiles = req.files?.image || []
-    const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
+      const savedImageIds = [];
+      // b) for each uploaded container, create image metadata + gallery entries
+      for (const container of uploadContainers) {
+        // createImage returns an object with image_id
+        const { image_id } = await req.queryExecutor.createImage(
+            // you can customize title/desc as needed
+            `Uploaded for ${fieldName}`,
+            `auto‐generated for ${fieldName}`
+        );
+        savedImageIds.push(image_id);
 
-    // now call the uploader with that array:
-    const uploadResults = files.length ? await imageUploader(files) : []
+        // store each URL/JSONB into the gallery table
+        // if your container is itself the JSONB object, push it directly
+        await req.queryExecutor.createImageGallery(
+            image_id,
+            container
+        );
+      }
 
-    const result = await req.queryExecutor.createImage(
-      'Test Title',
-      'Test Description'
-    )
+      // c) update the main row: single ID or array of IDs
+      const updateValue = savedImageIds.length === 1
+          ? savedImageIds[0]
+          : savedImageIds;
 
-    for (const container of uploadResults) {
-      await req.queryExecutor.createImageGallery(
-        result.image_id, // /* parentId:  */ newRecordId,
-        /* url:  */ container // JSONB object
-      )
+      await req.queryExecutor.updateData(
+          collectionName,
+          newRecordId,
+          { [fieldName]: updateValue }
+      );
     }
 
-    await req.queryExecutor.updateData(collectionName, newRecordId, {
-      [imageField]: result.image_id,
-    })
+    // 6) Log the insert
     await req.queryExecutor.insertLogEntry(
-      'insert_row',
-      req.user?.email || 'system',
-      collectionName,
-      newRecordId,
-      payload
-    )
+        'insert_row',
+        req.user?.email || 'system',
+        collectionName,
+        newRecordId,
+        payload
+    );
 
-    /* await req.queryExecutor.updateData(
-      collectionName,
-      newRecordId,
-      { images: uploadResults[0] } // first (and only) container
-    ) */
-
-    // 8) respond
+    // 7) Final response
     return res.json({
       status: true,
       message: 'Data inserted successfully',
-      data: { id: newRecordId, ...payload },
-    })
+      data: { id: newRecordId, ...payload }
+    });
   } catch (error) {
-    console.error(error)
-    return next(new AppError(500, 'Internal Server Error', error.message))
+    console.error(error);
+    return next(new AppError(
+        500,
+        'Internal Server Error',
+        error.message
+    ));
   }
 }
 
