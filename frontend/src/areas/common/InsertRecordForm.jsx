@@ -8,6 +8,8 @@ import {
 } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 import axios from 'axios'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 
 const SYSTEM_FIELDS = [
   'id',
@@ -31,6 +33,7 @@ const InsertRecordForm = () => {
   const { showAppMessage } = useNotification()
   const [image, setImage] = useState(null)
   const [status, setStatus] = useState('')
+  const [richTextFields, setRichTextFields] = useState({}) // Track which fields use rich text
 
   // Fetch all collection names on mount
   useEffect(() => {
@@ -206,19 +209,15 @@ const InsertRecordForm = () => {
   // Handle input changes for form fields
   const handleChange = (key, value, type) => {
     if (type === 'jsonb') {
-      // For jsonb fields, we handle file uploads separately
       return
     }
 
-    // Convert value based on field type
     let processedValue = value
     if (type === 'integer') {
-      // Convert to integer, use null if empty or invalid
       processedValue = value === '' ? null : parseInt(value, 10) || null
     } else if (type === 'boolean') {
       processedValue = Boolean(value)
     } else if (value === '') {
-      // Set empty string values to null
       processedValue = null
     }
 
@@ -245,6 +244,47 @@ const InsertRecordForm = () => {
     startIdx,
     startIdx + ITEMS_PER_PAGE
   )
+
+  // Add Quill modules configuration
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ color: [] }, { background: [] }],
+      ['link', 'image'],
+      ['clean'],
+      [{ align: [] }],
+      [{ indent: '-1' }, { indent: '+1' }],
+      ['blockquote', 'code-block'],
+    ],
+  }
+
+  const quillFormats = [
+    'header',
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'link',
+    'image',
+    'color',
+    'background',
+    'align',
+    'indent',
+    'blockquote',
+    'code-block',
+  ]
+
+  // Add toggle function for rich text editor
+  const toggleRichText = (fieldName) => {
+    setRichTextFields((prev) => ({
+      ...prev,
+      [fieldName]: !prev[fieldName],
+    }))
+  }
 
   return (
     <div className="bg-white p-6 rounded-xl shadow border">
@@ -358,14 +398,27 @@ const InsertRecordForm = () => {
             <form onSubmit={handleSubmit} className="space-y-4 mb-6">
               {schema.map((field) => (
                 <div key={field.column_name} className="mb-4">
-                  <label className="block text-sm font-medium text-gray-600 mb-1">
-                    {field.column_name}
-                    {field.data_type === 'jsonb' &&
-                      (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
-                    {!field.is_nullable && (
-                      <span className="text-red-500">*</span>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-sm font-medium text-gray-600">
+                      {field.column_name}
+                      {field.data_type === 'jsonb' &&
+                        (field.is_multiple ? ' (Multiple Images)' : ' (Image)')}
+                      {!field.is_nullable && (
+                        <span className="text-red-500">*</span>
+                      )}
+                    </label>
+                    {field.data_type === 'text' && (
+                      <button
+                        type="button"
+                        onClick={() => toggleRichText(field.column_name)}
+                        className="text-sm text-blue-600 hover:text-blue-800"
+                      >
+                        {richTextFields[field.column_name]
+                          ? 'Switch to Plain Text'
+                          : 'Use Rich Text Editor'}
+                      </button>
                     )}
-                  </label>
+                  </div>
 
                   {field.data_type === 'jsonb' ? (
                     <div className="space-y-2">
@@ -431,6 +484,24 @@ const InsertRecordForm = () => {
                           )}
                         </div>
                       )}
+                    </div>
+                  ) : field.data_type === 'text' &&
+                    richTextFields[field.column_name] ? (
+                    <div className="border rounded-md">
+                      <ReactQuill
+                        theme="snow"
+                        value={formData[field.column_name] || ''}
+                        onChange={(content) =>
+                          handleChange(
+                            field.column_name,
+                            content,
+                            field.data_type
+                          )
+                        }
+                        modules={quillModules}
+                        formats={quillFormats}
+                        className="h-48 mb-12" // Added margin bottom for toolbar
+                      />
                     </div>
                   ) : (
                     <input

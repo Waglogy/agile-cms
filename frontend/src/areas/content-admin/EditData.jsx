@@ -2,6 +2,8 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useNotification } from '../../context/NotificationContext'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
 
 const CollectionEditor = () => {
   const { showAppMessage } = useNotification()
@@ -14,6 +16,7 @@ const CollectionEditor = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null })
   const [searchTerm, setSearchTerm] = useState('')
   const [tableMetadata, setTableMetadata] = useState({}) // Store table metadata
+  const [richTextFields, setRichTextFields] = useState({}) // Track which fields use rich text
 
   // System fields to exclude from display
   const systemFields = [
@@ -146,9 +149,59 @@ const CollectionEditor = () => {
     fetchData()
   }, [selectedTable, showAppMessage])
 
+  // Add Quill modules configuration
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ color: [] }, { background: [] }],
+      ['link', 'image'],
+      ['clean'],
+      [{ align: [] }],
+      [{ indent: '-1' }, { indent: '+1' }],
+      ['blockquote', 'code-block'],
+    ],
+  }
+
+  const quillFormats = [
+    'header',
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'link',
+    'image',
+    'color',
+    'background',
+    'align',
+    'indent',
+    'blockquote',
+    'code-block',
+  ]
+
+  // Add toggle function for rich text editor
+  const toggleRichText = (fieldName) => {
+    setRichTextFields((prev) => ({
+      ...prev,
+      [fieldName]: !prev[fieldName],
+    }))
+  }
+
+  // Modify startEdit to initialize rich text state
   const startEdit = (row) => {
     setEditingId(row.id)
     setEditData({ ...row })
+    // Initialize rich text fields based on data type
+    const richTextState = {}
+    Object.keys(row).forEach((key) => {
+      if (typeof row[key] === 'string' && row[key].includes('<p>')) {
+        richTextState[key] = true
+      }
+    })
+    setRichTextFields(richTextState)
   }
 
   const cancelEdit = () => {
@@ -344,16 +397,53 @@ const CollectionEditor = () => {
                           .map((col) => (
                             <td key={col} className="px-4 py-2">
                               {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editData[col] ?? ''}
-                                  onChange={(e) =>
-                                    handleChange(col, e.target.value)
-                                  }
-                                  className="w-full border rounded px-2 py-1"
-                                />
+                                <div className="space-y-2">
+                                  {typeof row[col] === 'string' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRichText(col)}
+                                      className="text-sm text-blue-600 hover:text-blue-800 mb-2"
+                                    >
+                                      {richTextFields[col]
+                                        ? 'Switch to Plain Text'
+                                        : 'Use Rich Text Editor'}
+                                    </button>
+                                  )}
+                                  {richTextFields[col] ? (
+                                    <div className="border rounded-md">
+                                      <ReactQuill
+                                        theme="snow"
+                                        value={editData[col] || ''}
+                                        onChange={(content) =>
+                                          handleChange(col, content)
+                                        }
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        className="h-48 mb-12"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={editData[col] ?? ''}
+                                      onChange={(e) =>
+                                        handleChange(col, e.target.value)
+                                      }
+                                      className="w-full border rounded px-2 py-1"
+                                    />
+                                  )}
+                                </div>
                               ) : (
-                                cleanDataValue(String(row[col]))
+                                <div
+                                  className="prose max-w-none"
+                                  dangerouslySetInnerHTML={{
+                                    __html:
+                                      typeof row[col] === 'string' &&
+                                      row[col].includes('<p>')
+                                        ? row[col]
+                                        : String(row[col]),
+                                  }}
+                                />
                               )}
                             </td>
                           ))}
