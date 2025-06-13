@@ -539,7 +539,7 @@ $$ LANGUAGE plpgsql;
     `)
 
     await client.query(`
-      CREATE OR REPLACE FUNCTION agile_cms.rollback_content_type_row(
+    CREATE OR REPLACE FUNCTION agile_cms.rollback_content_type_row(
   p_table TEXT,
   p_id INT,
   p_version INT
@@ -560,28 +560,39 @@ BEGIN
     RETURN FALSE;
   END IF;
 
-FOR column_entry IN SELECT * FROM jsonb_each(snapshot) LOOP
-  IF column_entry.value IS NULL THEN
-    update_pairs := update_pairs || quote_ident(column_entry.key) || ' = NULL, ';
-  ELSE
-    update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' ||
-                    CASE
-                      WHEN jsonb_typeof(column_entry.value) = 'string' THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
-                      WHEN jsonb_typeof(column_entry.value) = 'null' THEN 'NULL'
-                      ELSE column_entry.value::TEXT
-                    END || ', ';
-  END IF;
-END LOOP;
+  FOR column_entry IN SELECT * FROM jsonb_each(snapshot) LOOP
+    -- 🚫 Skip primary key or system columns
+    IF column_entry.key IN ('id', 'created_at') THEN
+      CONTINUE;
+    END IF;
 
+    IF column_entry.value IS NULL THEN
+      update_pairs := update_pairs || quote_ident(column_entry.key) || ' = NULL, ';
+    ELSE
+      update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' ||
+        CASE
+          WHEN jsonb_typeof(column_entry.value) = 'string'
+            THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
+          WHEN jsonb_typeof(column_entry.value) = 'null'
+            THEN 'NULL'
+          ELSE column_entry.value::TEXT
+        END || ', ';
+    END IF;
+  END LOOP;
 
   update_pairs := TRIM(BOTH ', ' FROM update_pairs);
 
-  EXECUTE format('UPDATE %I SET %s WHERE id = %L', p_table, update_pairs, p_id);
+  EXECUTE format('UPDATE %I SET %s WHERE id = %s', p_table, update_pairs, p_id);
   GET DIAGNOSTICS row_count = ROW_COUNT;
 
   RETURN row_count > 0;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Rollback error: %', SQLERRM;
+  RETURN FALSE;
 END;
 $$ LANGUAGE plpgsql;
+
 
       `)
     // delete table
