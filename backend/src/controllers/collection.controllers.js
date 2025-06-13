@@ -224,66 +224,49 @@ export async function insertData(req, res, next) {
     }
     const newRecordId = insertResult.id;
 
-    // 4) Group uploaded files by field name
-    //    Multer with upload.any() gives you req.files as an array
+    // 4) group by field name
     const filesArray = Array.isArray(req.files) ? req.files : [];
-    const fileMap = {};
-    for (const file of filesArray) {
-      if (!fileMap[file.fieldname]) fileMap[file.fieldname] = [];
-      fileMap[file.fieldname].push(file);
-    }
+    const fileMap = filesArray.reduce((map, file) => {
+      map[file.fieldname] = map[file.fieldname] || [];
+      map[file.fieldname].push(file);
+      return map;
+    }, {});
 
-    // 5) Process each dynamic file‐field
+    // 5) for each dynamic file‐field:
     for (const [fieldName, files] of Object.entries(fileMap)) {
-      // a) upload raw files (your existing uploader)
+      // --- A) create a single metadata row for this field
+      const { image_id } = await req.queryExecutor.createImage(
+          `Auto for ${fieldName}`,
+          `Uploaded by user`
+      );
+
+      // --- B) upload & gallery all files under that one image_id
       const uploadContainers = await imageUploader(files);
-      //    uploadContainers is assumed to be an array of JSONB‐ready objects
-
-      const savedImageIds = [];
-      // b) for each uploaded container, create image metadata + gallery entries
       for (const container of uploadContainers) {
-        // createImage returns an object with image_id
-        const { image_id } = await req.queryExecutor.createImage(
-            // you can customize title/desc as needed
-            `Uploaded for ${fieldName}`,
-            `auto‐generated for ${fieldName}`
-        );
-        savedImageIds.push(image_id);
-
-        // store each URL/JSONB into the gallery table
-        // if your container is itself the JSONB object, push it directly
-        await req.queryExecutor.createImageGallery(
-            image_id,
-            container
-        );
+        await req.queryExecutor.createImageGallery(image_id, container);
       }
 
-      // c) update the main row: single ID or array of IDs
-      const updateValue = savedImageIds.length === 1
-          ? savedImageIds[0]
-          : savedImageIds;
-
+      // --- C) point your test_table FK at that one image_id
       await req.queryExecutor.updateData(
           collectionName,
           newRecordId,
-          { [fieldName]: updateValue }
+          { [fieldName]: image_id }
       );
     }
 
-    // 6) Log the insert
+    // 6) log, 7) respond  (unchanged)
     await req.queryExecutor.insertLogEntry(
         'insert_row',
         req.user?.email || 'system',
         collectionName,
         newRecordId,
-        payload
+        { ...body }
     );
 
-    // 7) Final response
     return res.json({
       status: true,
       message: 'Data inserted successfully',
-      data: { id: newRecordId, ...payload }
+      data: { id: newRecordId, ...body }
     });
   } catch (error) {
     console.error(error);
