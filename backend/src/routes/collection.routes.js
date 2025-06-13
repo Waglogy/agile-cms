@@ -16,6 +16,7 @@ import {
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 import injectQueryExecutor from '../middlewares/injectQueryExecutor.js'
+import {requireDatabaseSelection} from "../middlewares/databaseSelection.middleware.js";
 // import injectQueryExecutor from '../middlewares/injectQueryExecutor'
 
 const collectionRouter = Router()
@@ -34,7 +35,7 @@ const collectionRouter = Router()
  ** }
  **
  */
-collectionRouter.post('/create', injectQueryExecutor, createTable)
+collectionRouter.post('/create', requireDatabaseSelection, injectQueryExecutor, createTable)
 
 /*
  **
@@ -121,7 +122,6 @@ collectionRouter.post(
 
 collectionRouter.get(
   '/',
-  injectQueryExecutor,
   injectQueryExecutor,
   getAllCollections
 )

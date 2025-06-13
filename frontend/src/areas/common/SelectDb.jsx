@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { getAvailableDatabases } from '../../api/collectionApi'
+import axios from 'axios'
+import API_BASE_URL from '../../api/config'
 
 const SelectDb = () => {
   const { state } = useLocation()
@@ -34,7 +36,7 @@ const SelectDb = () => {
     }
   }, [state, navigate])
 
-  const onSubmit = (e) => {
+  const onSubmit = async (e) => {
     e.preventDefault()
     if (!selectedDb) return
 
@@ -46,9 +48,19 @@ const SelectDb = () => {
           ? '/content-manager/dashboard'
           : '/'
 
-    navigate(path, {
-      state: { db: selectedDb },
+    const response = await axios.post(`${API_BASE_URL}/init`, {
+      db_name: selectedDb
+    }, {
+      withCredentials: true
     })
+
+    console.log(response);
+
+    // save the jwt token in local storage.
+    localStorage.setItem('token', response?.data?.jwtToken)
+
+
+    navigate(path)
   }
 
 

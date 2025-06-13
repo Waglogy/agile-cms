@@ -7,7 +7,7 @@ class QueryExecutor {
 
   async createCollection(tableName, schema) {
     const result = await this.client.query(
-      'SELECT create_content_type($1, $2)',
+      'SELECT agile_cms.create_content_type($1, $2)',
       [tableName, schema]
     )
     await this.insertLogEntry('create_table', 'system', tableName, null, {
@@ -64,7 +64,7 @@ class QueryExecutor {
 
   async getAllCollections() {
     const result = await this.client.query(
-      'SELECT * FROM get_all_collections()'
+      'SELECT * from agile_cms.get_all_collections()'
     )
     return result.rows[0]
   }
@@ -369,6 +369,7 @@ class QueryExecutor {
 class QueryExecutorFactory {
   static forSession(sessionID) {
     const session = userConnections.get(sessionID)
+    console.log(session)
     if (!session?.client) throw new Error('No DB client found for session')
     return new QueryExecutor(session.client)
   }

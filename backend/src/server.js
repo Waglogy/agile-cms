@@ -1,4 +1,4 @@
-import app, { defaultDbClient } from './app.js'
+import app from './app.js'
 import envConfig from './config/env.config.js'
 import http from 'http'
 
@@ -6,19 +6,19 @@ const PORT = envConfig.PORT ?? 8000
 
 const server = http.createServer({ maxHeaderSize: 65536 }, app) // 64kb header size
 
-defaultDbClient
+/* defaultDbClient
   .connect()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log('App started successfully 🎉')
-      console.log(`Endpoint: http://localhost:${PORT}`)
-      console.log('Default database connected successfully')
-    })
-  })
+  .then(() => { */
+server.listen(PORT, () => {
+  console.log('App started successfully 🎉')
+  console.log(`Endpoint: http://localhost:${PORT}`)
+  console.log('Default database connected successfully')
+})
+/* })
   .catch((err) => {
     console.error('Failed to connect to DB:', err)
     process.exit(1)
-  })
+  }) */
 
 // Graceful shutdown on Ctrl+C or SIGTERM
 process.on('SIGINT', async () => {
