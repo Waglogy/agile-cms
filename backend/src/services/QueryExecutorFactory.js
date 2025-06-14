@@ -146,10 +146,11 @@ class QueryExecutorFactory {
     return result.rows[0].delete_attribute_from_collection
   }
 
-  async getCollectionData(tableName) {
-    const result = await client.query('SELECT get_collection_data($1)', [
-      tableName,
-    ])
+  async getCollectionData(tableName, limit = 10, offset = 0) {
+    const result = await client.query(
+      'SELECT agile_cms.get_collection_data($1, $2, $3)',
+      [tableName, limit, offset]
+    )
     return result.rows[0].get_collection_data
   }
 

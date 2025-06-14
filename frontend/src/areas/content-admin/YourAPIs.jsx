@@ -47,7 +47,7 @@ const YourAPIs = () => {
             </thead>
             <tbody>
               {collections.map((col) => {
-                const url = `${API_BASE_URL}/data/${col}`
+                const url = `${API_BASE_URL}/data/${col}?limit=10&offset=0`
                 return (
                   <tr key={col} className="hover:bg-gray-50">
                     <td className="px-4 py-2 border text-gray-700">{col}</td>

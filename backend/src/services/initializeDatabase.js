@@ -955,15 +955,27 @@ $$ LANGUAGE plpgsql;
     // get collection data
     await client.query(
       `
-CREATE OR REPLACE FUNCTION agile_cms.get_collection_data(p_table_name TEXT)
+CREATE OR REPLACE FUNCTION agile_cms.get_collection_data(
+  p_table_name TEXT,
+  p_limit INT DEFAULT 10,
+  p_offset INT DEFAULT 0
+)
 RETURNS JSON AS $$
 DECLARE
     result JSON;
 BEGIN
-    EXECUTE format('SELECT json_agg(t) FROM %I t', p_table_name) INTO result;
+    EXECUTE format(
+      'SELECT json_agg(t) FROM (
+         SELECT * FROM %I LIMIT %s OFFSET %s
+       ) t',
+       p_table_name, p_limit, p_offset
+    )
+    INTO result;
+
     RETURN result;
 END;
 $$ LANGUAGE plpgsql;
+
         
         `
     )

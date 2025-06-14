@@ -167,7 +167,7 @@ export async function deleteAttributeFromCollection(req, res, next) {
 // Retrieve data from a specific collection
 export async function getCollectionData(req, res, next) {
   const { tableName } = req.params
-  const { files } = req.query
+  const { files, limit = 10, offset = 0 } = req.query
 
   if (!tableName) {
     return next(new AppError(400, 'Table name is required'))
@@ -179,7 +179,11 @@ export async function getCollectionData(req, res, next) {
     if (files === 'true') {
       data = await queryExecutor.getCollectionDataWithImages(tableName)
     } else {
-      data = await queryExecutor.getCollectionData(tableName)
+      data = await queryExecutor.getCollectionData(
+        tableName,
+        parseInt(limit),
+        parseInt(offset)
+      )
     }
 
     return res.json({
@@ -191,6 +195,7 @@ export async function getCollectionData(req, res, next) {
     return next(new AppError(500, 'Failed to fetch data', err))
   }
 }
+
 
 // Insert new data into a collection
 export async function insertData(req, res, next) {
