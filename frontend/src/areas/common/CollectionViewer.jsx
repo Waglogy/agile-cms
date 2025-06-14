@@ -14,6 +14,7 @@ const EXCLUDED_TABLES = [
   'settings',
   'user_roles',
   'users',
+  'images'
 ]
 
 /**

@@ -4,6 +4,17 @@ import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 import API_BASE_URL from '../../api/config'
 
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'utbl_image_galleries',
+]
+
 const YourAPIs = () => {
   const [collections, setCollections] = useState([])
   const { showAppMessage } = useNotification()
@@ -16,7 +27,11 @@ const YourAPIs = () => {
     try {
       const res = await getAllCollections()
       const list = res?.data?.data?.get_all_collections || []
-      setCollections(list.map((c) => c.collection_name))
+      setCollections(
+        list
+          .filter((c) => !EXCLUDED_TABLES.includes(c.collection_name))
+          .map((c) => c.collection_name)
+      )
     } catch (err) {
       console.error(err)
       showAppMessage('Failed to load collections', 'error')

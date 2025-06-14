@@ -13,6 +13,8 @@ const EXCLUDED_TABLES = [
   'settings',
   'user_roles',
   'users',
+  'images',
+  'utbl_image_galleries',
 ]
 
 const CollectionEditor = () => {

@@ -16,6 +16,16 @@ const SUPPORTED_TYPES = [
   'NUMERIC',
   'JSONB',
 ]
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'utbl_image_galleries',
+]
 
 const TableManager = () => {
   const [tables, setTables] = useState([])
@@ -37,18 +47,20 @@ const TableManager = () => {
         return
       }
 
-      const mapped = collectionList.map((table) => ({
-        name: table.collection_name,
-        fields: table.columns.map((col) => ({
-          name: col.column_name,
-          originalName: col.column_name,
-          type: SUPPORTED_TYPES.includes(col.data_type.toUpperCase())
-            ? col.data_type.toUpperCase()
-            : '',
-          comment: '',
-          action: 'type',
-        })),
-      }))
+      const mapped = collectionList
+        .filter((table) => !EXCLUDED_TABLES.includes(table.collection_name))
+        .map((table) => ({
+          name: table.collection_name,
+          fields: table.columns.map((col) => ({
+            name: col.column_name,
+            originalName: col.column_name,
+            type: SUPPORTED_TYPES.includes(col.data_type.toUpperCase())
+              ? col.data_type.toUpperCase()
+              : '',
+            comment: '',
+            action: 'type',
+          })),
+        }))
 
       setTables(mapped)
     } catch (err) {
