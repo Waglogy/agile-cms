@@ -97,25 +97,42 @@ export const collectionValidation = {
     id: Joi.number().integer().positive().required(),
   }),
 
-  alterCollection: Joi.object({
-    tableName: Joi.string()
+ alterCollection: Joi.object({
+  action: Joi.string()
+    .valid('add', 'drop', 'rename', 'type', 'comment')
+    .required(),
+
+  tableName: Joi.string()
+    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+    .required(),
+
+  columnName: Joi.when('action', {
+    is: Joi.valid('add', 'drop', 'rename', 'type', 'comment'),
+    then: Joi.string()
       .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
       .required(),
-    columnName: Joi.string()
-      .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
-      .required(),
-    columnType: Joi.string()
-      .valid(
-        'TEXT',
-        'INTEGER',
-        'BOOLEAN',
-        'TIMESTAMP',
-        'DATE',
-        'NUMERIC',
-        'JSONB'
-      )
-      .required(),
-    constraints: Joi.string().allow('').optional(),
-    required: Joi.boolean().default(false), // ✅ Required flag validation
+    otherwise: Joi.forbidden(),
   }),
+
+  columnType: Joi.when('action', {
+    is: Joi.valid('add', 'type'),
+    then: Joi.string()
+      .valid('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB')
+      .required(),
+    otherwise: Joi.string().optional(),
+  }),
+
+  constraints: Joi.string().allow('', null).optional(),
+
+  newName: Joi.when('action', {
+    is: 'rename',
+    then: Joi.string()
+      .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+      .required(),
+    otherwise: Joi.string().optional(),
+  }),
+
+  comment: Joi.string().allow('', null).optional(),
+}),
+
 }

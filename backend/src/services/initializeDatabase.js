@@ -2,7 +2,7 @@ import pg from 'pg'
 import envConfig from '../config/env.config.js'
 // import client from '../config/db.config.js'
 
-const { Client } = pg
+const { Client, Pool } = pg
 
 // Connect to PostgreSQL (without specifying database)
 const adminClient = new Client({
@@ -13,9 +13,8 @@ const adminClient = new Client({
   database: 'postgres', // Connect to the default database first
 })
 
-let client
 async function initializeDatabase(db_name) {
-  client = new Client({
+  const client = new Pool({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
     password: envConfig.PG_PASSWORD,
@@ -47,6 +46,7 @@ async function initializeDatabase(db_name) {
 
     // ✅ Connect to the created database
     await client.connect()
+
     // console.log()
     await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
     await client.query(`SET search_path TO agile_cms;`)
@@ -68,13 +68,52 @@ async function initializeDatabase(db_name) {
     if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
       console.log('✅ Database is already initialized. Skipping setup.')
       // await client.end()
-      return
+      return client
     }
 
     console.log('🚀 Running database initialization...')
 
     // ✅ Enable pgcrypto extension
     await client.query(`CREATE EXTENSION IF NOT EXISTS pgcrypto;`)
+    // ✅ Create logs table
+    await client.query(`
+  CREATE TABLE IF NOT EXISTS agile_cms.logs (
+    id SERIAL PRIMARY KEY,
+    action_type TEXT NOT NULL, -- 'create', 'edit', 'delete'
+    user_email TEXT NOT NULL,
+    table_name TEXT NOT NULL,
+    record_id INT,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+`)
+
+    // ✅ Add column comments to logs table
+    await client.query(`
+  COMMENT ON COLUMN agile_cms.logs.id IS 'Primary key for the log entry';
+  COMMENT ON COLUMN agile_cms.logs.action_type IS 'Type of action (create, edit, delete)';
+  COMMENT ON COLUMN agile_cms.logs.user_email IS 'Email of the user who performed the action';
+  COMMENT ON COLUMN agile_cms.logs.table_name IS 'Name of the affected table';
+  COMMENT ON COLUMN agile_cms.logs.record_id IS 'ID of the affected record';
+  COMMENT ON COLUMN agile_cms.logs.details IS 'Additional JSONB details about the action';
+  COMMENT ON COLUMN agile_cms.logs.created_at IS 'Timestamp when the action occurred';
+`)
+
+    // ✅ Log insertion function
+    await client.query(`
+  CREATE OR REPLACE FUNCTION agile_cms.insert_log_entry(
+    p_action_type TEXT,
+    p_user_email TEXT,
+    p_table_name TEXT,
+    p_record_id INT,
+    p_details JSONB
+  ) RETURNS VOID AS $$
+  BEGIN
+    INSERT INTO agile_cms.logs(action_type, user_email, table_name, record_id, details)
+    VALUES (p_action_type, p_user_email, p_table_name, p_record_id, p_details);
+  END;
+  $$ LANGUAGE plpgsql;
+`)
 
     // ✅ Create Tables
     await client.query(`
@@ -165,29 +204,133 @@ $$ LANGUAGE plpgsql;
 `)
 
     // alter dynamic table or collection
-    await client.query(`
-        CREATE OR REPLACE FUNCTION agile_cms.alter_content_type(
-    table_name TEXT,
-    column_name TEXT,
-    column_type TEXT,
-    constraints TEXT DEFAULT ''
-) RETURNS BOOLEAN AS $$
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.alter_content_type(
+  p_action TEXT,
+  p_table_name TEXT,
+  p_column_name TEXT DEFAULT NULL,
+  p_column_type TEXT DEFAULT NULL,
+  p_constraints TEXT DEFAULT NULL,
+  p_new_name TEXT DEFAULT NULL,
+  p_comment TEXT DEFAULT NULL
+) RETURNS TEXT AS $$
 BEGIN
-    -- Validate supported types
-    IF column_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-        RAISE EXCEPTION 'Unsupported data type: %', column_type;
+  IF p_action = 'add' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I ADD COLUMN IF NOT EXISTS %I %s %s',
+      p_table_name, p_column_name, p_column_type, COALESCE(p_constraints, '')
+    );
+
+    IF p_comment IS NOT NULL THEN
+      EXECUTE format(
+        'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
+        p_table_name, p_column_name, p_comment
+      );
     END IF;
 
-    -- Execute dynamic SQL to alter the table and add new column
-    EXECUTE format('ALTER TABLE %I ADD COLUMN IF NOT EXISTS %I %s %s;', table_name, column_name, column_type, constraints);
+    RETURN 'Column added';
 
-    RETURN TRUE; -- Column added successfully
+  ELSIF p_action = 'drop' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I DROP COLUMN IF EXISTS %I',
+      p_table_name, p_column_name
+    );
+    RETURN 'Column dropped';
+
+  ELSIF p_action = 'rename' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I RENAME COLUMN %I TO %I',
+      p_table_name, p_column_name, p_new_name
+    );
+    RETURN 'Column renamed';
+
+  ELSIF p_action = 'type' THEN
+    EXECUTE format(
+      'ALTER TABLE agile_cms.%I ALTER COLUMN %I TYPE %s %s',
+      p_table_name, p_column_name, p_column_type, COALESCE(p_constraints, '')
+    );
+    RETURN 'Column type changed';
+
+  ELSIF p_action = 'comment' THEN
+    EXECUTE format(
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
+      p_table_name, p_column_name, p_comment
+    );
+    RETURN 'Comment added';
+
+  ELSE
+    RETURN 'Invalid action';
+  END IF;
 EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'Error adding column: %', SQLERRM;
-        RETURN FALSE;
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error: %', SQLERRM;
+    RETURN 'Failed: ' || SQLERRM;
 END;
 $$ LANGUAGE plpgsql;
+
+`)
+
+    await client.query(`
+      CREATE OR REPLACE FUNCTION agile_cms.create_content_type(
+  tbl_name   TEXT,
+  schema_def JSONB
+) RETURNS TEXT AS $$
+DECLARE
+  col_defs    TEXT := '';
+  col_name    TEXT;
+  column_def  JSONB;
+  col_type    TEXT;
+  constraints TEXT;
+  is_mult     BOOLEAN;
+BEGIN
+  -- 1) Loop through fields and build SQL column definitions
+  FOR col_name, column_def IN
+    SELECT key, value FROM jsonb_each(schema_def)
+  LOOP
+    col_type := column_def->>'type';
+    constraints := COALESCE(column_def->>'constraints', '');
+    col_defs := col_defs || format('%I %s %s, ', col_name, col_type, constraints);
+  END LOOP;
+
+  -- 2) Trim trailing comma and whitespace
+  col_defs := rtrim(col_defs, ', ');
+
+  -- 3) Append system versioning/status columns
+  col_defs := col_defs || ',
+    status        TEXT DEFAULT ''draft'',
+    version       INT DEFAULT 1,
+    created_at    TIMESTAMPTZ DEFAULT NOW(),
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    published_at  TIMESTAMPTZ
+  ';
+
+  -- 4) Create the dynamic table
+  EXECUTE format(
+    'CREATE TABLE IF NOT EXISTS %I (
+       id SERIAL PRIMARY KEY,
+       %s
+     )',
+    tbl_name,
+    col_defs
+  );
+
+  -- 5) Comment on columns for is_multiple
+  FOR col_name, column_def IN
+    SELECT key, value FROM jsonb_each(schema_def)
+  LOOP
+    is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
+    EXECUTE format(
+      'COMMENT ON COLUMN %I.%I IS %L',
+      tbl_name,
+      col_name,
+      format('is_multiple=%s', is_mult)
+    );
+  END LOOP;
+
+  RETURN 'created';
+END;
+$$ LANGUAGE plpgsql;
+
+
 `)
 
     //insert into content type or table
@@ -202,21 +345,27 @@ DECLARE
   col_val    JSONB;
   v_result   JSONB;
 BEGIN
-  -- 1) Build comma-separated lists of the JSONB keys and their literal values
+  -- 1) Add default system fields if missing
+  IF NOT p_data ? 'status' THEN
+    p_data := p_data || jsonb_build_object('status', 'draft');
+  END IF;
+  IF NOT p_data ? 'version' THEN
+    p_data := p_data || jsonb_build_object('version', 1);
+  END IF;
+
+  -- 2) Build comma-separated list of keys and values
   FOR col_name, col_val IN
-    SELECT key, value
-      FROM jsonb_each(p_data)
+    SELECT key, value FROM jsonb_each(p_data)
   LOOP
     v_cols := v_cols || quote_ident(col_name) || ', ';
-    v_vals := v_vals
-      || quote_literal(col_val::text)
+   v_vals := v_vals || quote_literal(col_val::text)::TEXT
       || CASE
            WHEN (
              SELECT data_type = 'jsonb'
-               FROM information_schema.columns
-              WHERE table_name  = p_table_name
-                AND column_name = col_name
-              LIMIT 1
+             FROM information_schema.columns
+             WHERE table_name  = p_table_name
+               AND column_name = col_name
+             LIMIT 1
            )
            THEN '::jsonb'
            ELSE ''
@@ -224,7 +373,7 @@ BEGIN
       || ', ';
   END LOOP;
 
-  -- 2) Trim trailing commas
+  -- 3) Trim trailing commas
   v_cols := rtrim(v_cols, ', ');
   v_vals := rtrim(v_vals, ', ');
 
@@ -232,7 +381,7 @@ BEGIN
     RAISE EXCEPTION 'Data must contain at least one column';
   END IF;
 
-  -- 3) Insert and RETURN the *entire* row of t as JSONB (including id)
+  -- 4) Insert and return the full row
   EXECUTE format(
     'INSERT INTO %I AS t (%s) VALUES (%s)
        RETURNING to_jsonb(t)',
@@ -240,13 +389,11 @@ BEGIN
     v_cols,
     v_vals
   )
-    INTO v_result;
+  INTO v_result;
 
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
-
-
     `)
 
     // delete data from table
@@ -262,6 +409,54 @@ $$ LANGUAGE plpgsql;
       END;
       $$ LANGUAGE plpgsql;
     `)
+
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.publish_content_type_row(
+  p_table TEXT,
+  p_id    INT
+) RETURNS BOOLEAN AS $$
+DECLARE
+  current_version INT;
+BEGIN
+  -- Get current version of the target row
+  EXECUTE format('SELECT version FROM %I WHERE id = %L', p_table, p_id)
+  INTO current_version;
+
+  -- Archive any other published rows
+  EXECUTE format(
+    'UPDATE %I SET status = ''archived'' WHERE status = ''published'' AND id != %L',
+    p_table, p_id
+  );
+
+  -- Promote this row to published
+  EXECUTE format(
+    'UPDATE %I SET status = ''published'', published_at = NOW(), version = %s WHERE id = %s',
+    p_table, current_version + 1, p_id
+  );
+
+  RETURN TRUE;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE NOTICE 'Error publishing: %', SQLERRM;
+    RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+`)
+
+    await client.query(`CREATE OR REPLACE FUNCTION agile_cms.get_collection_by_status(
+  p_table TEXT,
+  p_status TEXT
+) RETURNS JSON AS $$
+DECLARE
+  result JSON;
+BEGIN
+  EXECUTE format(
+    'SELECT json_agg(t) FROM %I t WHERE status = %L',
+    p_table, p_status
+  ) INTO result;
+  RETURN result; 
+END;
+$$ LANGUAGE plpgsql;
+`)
 
     // update content type data
     await client.query(`
@@ -817,10 +1012,12 @@ LANGUAGE sql AS $$
 $$;
 
         `)
+
+    // return the client
+    return client
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
 }
 
 export default initializeDatabase
-export { client }

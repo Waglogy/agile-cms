@@ -1,19 +1,34 @@
 import app from './app.js'
 import envConfig from './config/env.config.js'
-import initializeDatabase from './services/initializeDatabase.js'
 import http from 'http'
 
-const PORT = envConfig.PORT ?? 3000
+const PORT = envConfig.PORT ?? 8000
 
-initializeDatabase('music')
-  .then(() => {
-    const server = http.createServer({ maxHeaderSize: 65536 }, app) // 64kb header size
-    server.listen(PORT, () => {
-      console.log('App started successfully 🎉')
-      console.log(`Endpoint: http://localhost:${PORT}`)
-    })
-  })
+const server = http.createServer({ maxHeaderSize: 65536 }, app) // 64kb header size
+
+/* defaultDbClient
+  .connect()
+  .then(() => { */
+server.listen(PORT, () => {
+  console.log('App started successfully 🎉')
+  console.log(`Endpoint: http://localhost:${PORT}`)
+  console.log('Default database connected successfully')
+})
+/* })
   .catch((err) => {
-    console.error('Database initialization error:', err)
+    console.error('Failed to connect to DB:', err)
     process.exit(1)
-  })
+  }) */
+
+// Graceful shutdown on Ctrl+C or SIGTERM
+process.on('SIGINT', async () => {
+  console.log('\nShutting down gracefully...')
+  try {
+    await defaultDbClient.end()
+    console.log('Database connection closed')
+    process.exit(0)
+  } catch (err) {
+    console.error('Error during shutdown:', err)
+    process.exit(1)
+  }
+})

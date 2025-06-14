@@ -1,74 +1,71 @@
-/* eslint-disable no-unused-vars */
-import { useEffect } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
-import "./App.css";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import DashboardLayout from './areas/common/DashboardLayout'
+import AdminDashboard from './areas/content-admin/Dashboard'
+import CreateTable from './areas/content-admin/CreateTable'
+import TableManager from './areas/content-admin/TableManager'
+import ActivityLogs from './areas/content-admin/SystemLogs'
+import InsertRecordForm from './areas/common/InsertRecordForm'
+import CollectionViewer from './areas/common/CollectionViewer'
+import YourAPIs from './areas/content-admin/YourAPIs'
+import EditData from './areas/content-admin/EditData'
+import WelcomeLogin from './areas/common/login'
+import SelectDb from './areas/common/SelectDb'
+import ContentManagerDashboard from './areas/content-manager/Dashboard'
+import AddDataToTable from './areas/content-manager/AddData-To-Table'
 
-import DesktopOnlyRoute from "./areas/DesktopOnlyRoute";
-
-import SelectDb from "./areas/public/pages/selectDb.component";
-
-import SystemAdminDashboard from "./areas/admin/system-admin/SystemAdminDashboard";
-import CreateTableComponent from "./areas/admin/system-admin/modules/TableCreation/createTable.component";
-import UpdateTableComponent from "./areas/admin/system-admin/modules/TableUpdate/updateTablecomponent";
-import ContentAdminDashboard from "./areas/admin/content-admin/ContentAdminDashboard";
-import AddContent from "./areas/admin/content-admin/components/AddContent";
-import Contents from "./areas/admin/content-admin/components/Contents";
-import ViewUpdate from "./areas/admin/content-admin/components/ViewUpdate";
+// ✅ Mock table data for TableManager
+const mockTables = [
+  {
+    name: 'Physics MCQs',
+    fields: [
+      { name: 'question', type: 'text' },
+      { name: 'difficulty', type: 'number' },
+    ],
+  },
+  {
+    name: 'History Archive',
+    fields: [
+      { name: 'image', type: 'image' },
+      { name: 'description', type: 'text' },
+    ],
+  },
+]
 
 function App() {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  }, [pathname]);
-
   return (
-    <>
+    <BrowserRouter>
       <Routes>
-        <Route exact path="/" element={<SelectDb />} />
+        <Route path="/login" element={<WelcomeLogin />} />
+        <Route path="/select-db" element={<SelectDb />} />
+        <Route path="/content-manager/dashboard" element={<ContentManagerDashboard />} />
+        <Route path="/" element={<DashboardLayout />}>
+          <Route index element={<Navigate to="/login" />} />
 
-        {/* System Admin */}
-        <Route
-          exact
-          path="/system-admin/dashboard"
-          element={
-            <DesktopOnlyRoute>
-              <SystemAdminDashboard />
-            </DesktopOnlyRoute>
-          }
-        />
-        <Route
-          path="/system-admin/modules/table-creation"
-          element={<CreateTableComponent />}
-        />
-        <Route
-          path="/system-admin/modules/table-update"
-          element={
-            <DesktopOnlyRoute>
-              <UpdateTableComponent />
-            </DesktopOnlyRoute>
-          }
-        />
-
-        {/* Content Admin */}
-        <Route
-          path="/content-admin"
-          element={
-            <DesktopOnlyRoute>
-              <ContentAdminDashboard />
-            </DesktopOnlyRoute>
-          }
-        >
-          <Route path="add" element={<AddContent />} />
-          <Route path="contents" element={<Contents />} />
-          <Route path="view-update" element={<ViewUpdate />} />
+          <Route path="content-admin/dashboard" element={<AdminDashboard />} />
+          <Route path="content-admin/create-table" element={<CreateTable />} />
+          <Route path="content-admin/activity-logs" element={<ActivityLogs />} />
+          <Route path="content-admin/insert-data" element={<InsertRecordForm />} />
+          <Route path="content-admin/collection-view" element={<CollectionViewer />} />
+          <Route path="content-admin/your-apis" element={<YourAPIs />} />
+          <Route path= "content-admin/update-data" element={<EditData/>}/>
+          <Route path="content-manager/dashboard" element={<ContentManagerDashboard />} />
+          <Route path="content-manager/insert-data" element={<AddDataToTable />} />
+          <Route path="data/content-manager/collection-view" element={<CollectionViewer />} />
+          <Route
+            path="content-admin/manage-tables"
+            element={
+              <TableManager
+                tables={mockTables}
+                onUpdate={(updatedTable) => {
+                  console.log('Updated table:', updatedTable)
+                }}
+              />
+            }
+          />
         </Route>
       </Routes>
-    </>
-  );
+    </BrowserRouter>
+  )
 }
 
-export default App;
+export default App
