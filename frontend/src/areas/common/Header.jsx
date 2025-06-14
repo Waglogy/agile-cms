@@ -2,6 +2,7 @@
 import { Menu } from 'lucide-react'
 import NotificationDropdown from './NotificationDropdown'
 import logo from '../../assets/bbLogo.png'
+import { getUserRole } from '../../utils/roleManager'
 
 const Header = ({ toggleSidebar }) => {
   const mockNotifications = [
@@ -9,6 +10,11 @@ const Header = ({ toggleSidebar }) => {
     'Task "Design CMS UI" marked complete',
     'Server restarted at 3:00 AM',
   ]
+
+  // Get role from localStorage
+  const role = getUserRole()
+  const displayRole =
+    role === 'content_admin' ? 'Content Admin' : 'Content Manager'
 
   return (
     <header className="bg-[#fefce8] mx-4 md:mx-6 mt-4 rounded-xl shadow-md">
@@ -28,7 +34,7 @@ const Header = ({ toggleSidebar }) => {
         <div className="flex items-center gap-4">
           <NotificationDropdown notifications={mockNotifications} />
           <span className="text-[#1f1f1f] text-sm font-medium bg-[#facc15] px-3 py-1 rounded-full">
-           Content Admin
+            {displayRole}
           </span>
         </div>
       </div>

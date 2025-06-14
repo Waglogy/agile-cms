@@ -11,54 +11,69 @@ import {
   Code,
   Edit,
 } from 'lucide-react' // added Table icon
+import { getUserRole } from '../../utils/roleManager'
 
 const Sidebar = ({ mobile }) => {
   const { pathname } = useLocation()
+  const role = getUserRole()
 
-  const navItems = [
+  // Define base path based on role
+  const basePath =
+    role === 'content_admin' ? '/content-admin' : '/content-manager'
+
+  const allNavItems = [
     {
-      to: '/content-admin/dashboard',
+      to: `${basePath}/dashboard`,
       label: 'Dashboard',
       icon: <LayoutDashboard size={28} />,
+      roles: ['content_admin', 'content_manager'],
     },
     {
-      to: '/content-admin/create-table',
+      to: `${basePath}/create-table`,
       label: 'Create Table',
       icon: <Table size={28} />,
+      roles: ['content_admin'],
     },
     {
-      to: '/content-admin/manage-tables',
-
+      to: `${basePath}/manage-tables`,
       label: 'Manage Tables',
       icon: <Wrench size={28} />,
+      roles: ['content_admin'],
     },
     {
-      to: '/content-admin/activity-logs',
+      to: `${basePath}/activity-logs`,
       label: 'Logs',
       icon: <FileText size={28} />,
+      roles: ['content_admin', 'content_manager'],
     },
     {
-      to: '/content-admin/insert-data',
+      to: `${basePath}/insert-data`,
       label: 'Add data',
       icon: <PlusSquare size={28} />,
+      roles: ['content_admin'],
     },
     {
-      to: '/content-admin/collection-view',
+      to: `${basePath}/collection-view`,
       label: 'Show Tables',
       icon: <Eye size={28} />,
+      roles: ['content_admin', 'content_manager'],
     },
     {
-      to: '/content-admin/your-apis',
+      to: `${basePath}/your-apis`,
       label: 'Your APIs',
       icon: <Code size={28} />,
+      roles: ['content_admin', 'content_manager'],
     },
-
     {
-      to: 'content-admin/update-data',
+      to: `${basePath}/update-data`,
       label: 'Update Table Data',
       icon: <Edit size={28} />,
+      roles: ['content_admin', 'content_manager'],
     },
   ]
+
+  // Filter navigation items based on role from localStorage
+  const navItems = allNavItems.filter((item) => item.roles.includes(role))
 
   return (
     <aside

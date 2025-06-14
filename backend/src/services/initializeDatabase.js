@@ -115,6 +115,30 @@ async function initializeDatabase(db_name) {
   $$ LANGUAGE plpgsql;
 `)
 
+    await client.query(`
+  CREATE TABLE IF NOT EXISTS agile_cms.content_versions (
+  id SERIAL PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  record_id INT NOT NULL,
+  version INT NOT NULL,
+  data JSONB NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+`)
+
+    await client.query(`
+  CREATE OR REPLACE FUNCTION agile_cms.save_content_version(
+  p_table TEXT,
+  p_id INT,
+  p_data JSONB,
+  p_version INT
+) RETURNS VOID AS $$
+BEGIN
+  INSERT INTO agile_cms.content_versions(table_name, record_id, version, data)
+  VALUES (p_table, p_id, p_version, p_data);
+END;
+$$ LANGUAGE plpgsql;
+`)
     // ✅ Create Tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
@@ -181,7 +205,7 @@ BEGIN
     END
   );
 
-  -- 3) Loop to COMMENT on each user-defined column’s is_multiple flag
+  -- 3) Loop to COMMENT on each user-defined column's is_multiple flag
   FOR col_name, column_def IN
     SELECT js.key, js.value
     FROM jsonb_each(schema_def) AS js(key, value)
@@ -358,19 +382,25 @@ BEGIN
     SELECT key, value FROM jsonb_each(p_data)
   LOOP
     v_cols := v_cols || quote_ident(col_name) || ', ';
-   v_vals := v_vals || quote_literal(col_val::text)::TEXT
-      || CASE
-           WHEN (
-             SELECT data_type = 'jsonb'
-             FROM information_schema.columns
-             WHERE table_name  = p_table_name
-               AND column_name = col_name
-             LIMIT 1
-           )
-           THEN '::jsonb'
-           ELSE ''
-         END
-      || ', ';
+
+    v_vals := v_vals || 
+      CASE
+        WHEN jsonb_typeof(col_val) = 'string' THEN quote_literal(trim(both '"' from col_val::TEXT))
+        WHEN jsonb_typeof(col_val) = 'null' THEN 'NULL'
+        ELSE col_val::TEXT
+      END
+    || 
+      CASE
+        WHEN (
+          SELECT data_type = 'jsonb'
+          FROM information_schema.columns
+          WHERE table_name = p_table_name AND column_name = col_name
+          LIMIT 1
+        )
+        THEN '::jsonb'
+        ELSE ''
+      END
+    || ', ';
   END LOOP;
 
   -- 3) Trim trailing commas
@@ -384,7 +414,7 @@ BEGIN
   -- 4) Insert and return the full row
   EXECUTE format(
     'INSERT INTO %I AS t (%s) VALUES (%s)
-       RETURNING to_jsonb(t)',
+     RETURNING to_jsonb(t)',
     p_table_name,
     v_cols,
     v_vals
@@ -394,7 +424,7 @@ BEGIN
   RETURN v_result;
 END;
 $$ LANGUAGE plpgsql;
-    `)
+`)
 
     // delete data from table
     await client.query(`
@@ -465,20 +495,105 @@ $$ LANGUAGE plpgsql;
           update_pairs TEXT := '';
           column_entry RECORD;
           row_count INT;
+          result JSONB;
+          current_version INT;
       BEGIN
+          -- Get current version
+          EXECUTE format('SELECT version FROM %I WHERE id = %s', table_name, id) INTO current_version;
+          IF current_version IS NULL THEN
+              RETURN FALSE;
+          END IF;
+
+          -- Build update pairs
           FOR column_entry IN SELECT * FROM jsonb_each(update_data) LOOP
-              update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' || quote_literal(column_entry.value) || ', ';
+              IF column_entry.key != 'version' THEN  -- Skip version in update pairs
+                  update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' || 
+                      CASE 
+                          WHEN jsonb_typeof(column_entry.value) = 'string' THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
+                          WHEN jsonb_typeof(column_entry.value) = 'null' THEN 'NULL'
+                          ELSE column_entry.value::TEXT
+                      END || ', ';
+              END IF;
           END LOOP;
-          update_pairs := TRIM(BOTH ', ' FROM update_pairs);
-          IF update_pairs = '' THEN RETURN FALSE; END IF;
-          EXECUTE format('UPDATE %I SET %s WHERE id = %s;', table_name, update_pairs, id);
+          
+          -- Add version increment and updated_at
+          update_pairs := update_pairs || 'version = ' || (current_version + 1) || ', updated_at = NOW()';
+          
+          -- Get current data for versioning
+          EXECUTE format('SELECT to_jsonb(t) FROM %I t WHERE id = %s', table_name, id) INTO result;
+          
+          -- Save version
+          PERFORM agile_cms.save_content_version(table_name, id, result, current_version);
+          
+          -- Execute update
+          EXECUTE format('UPDATE %I SET %s WHERE id = %s', table_name, update_pairs, id);
+          
           GET DIAGNOSTICS row_count = ROW_COUNT;
           RETURN row_count > 0;
-      EXCEPTION WHEN OTHERS THEN RETURN FALSE;
+      EXCEPTION WHEN OTHERS THEN 
+          RAISE NOTICE 'Error updating: %', SQLERRM;
+          RETURN FALSE;
       END;
       $$ LANGUAGE plpgsql;
     `)
 
+    await client.query(`
+    CREATE OR REPLACE FUNCTION agile_cms.rollback_content_type_row(
+  p_table TEXT,
+  p_id INT,
+  p_version INT
+) RETURNS BOOLEAN AS $$
+DECLARE
+  snapshot JSONB;
+  update_pairs TEXT := '';
+  column_entry RECORD;
+  row_count INT;
+BEGIN
+  SELECT data INTO snapshot
+  FROM agile_cms.content_versions
+  WHERE table_name = p_table AND record_id = p_id AND version = p_version
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  IF snapshot IS NULL THEN
+    RETURN FALSE;
+  END IF;
+
+  FOR column_entry IN SELECT * FROM jsonb_each(snapshot) LOOP
+    -- 🚫 Skip primary key or system columns
+    IF column_entry.key IN ('id', 'created_at') THEN
+      CONTINUE;
+    END IF;
+
+    IF column_entry.value IS NULL THEN
+      update_pairs := update_pairs || quote_ident(column_entry.key) || ' = NULL, ';
+    ELSE
+      update_pairs := update_pairs || quote_ident(column_entry.key) || ' = ' ||
+        CASE
+          WHEN jsonb_typeof(column_entry.value) = 'string'
+            THEN quote_literal(trim(both '"' from column_entry.value::TEXT))
+          WHEN jsonb_typeof(column_entry.value) = 'null'
+            THEN 'NULL'
+          ELSE column_entry.value::TEXT
+        END || ', ';
+    END IF;
+  END LOOP;
+
+  update_pairs := TRIM(BOTH ', ' FROM update_pairs);
+
+  EXECUTE format('UPDATE %I SET %s WHERE id = %s', p_table, update_pairs, p_id);
+  GET DIAGNOSTICS row_count = ROW_COUNT;
+
+  RETURN row_count > 0;
+
+EXCEPTION WHEN OTHERS THEN
+  RAISE NOTICE 'Rollback error: %', SQLERRM;
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql;
+
+
+      `)
     // delete table
 
     await client.query(`
@@ -840,15 +955,27 @@ $$ LANGUAGE plpgsql;
     // get collection data
     await client.query(
       `
-CREATE OR REPLACE FUNCTION agile_cms.get_collection_data(p_table_name TEXT)
+CREATE OR REPLACE FUNCTION agile_cms.get_collection_data(
+  p_table_name TEXT,
+  p_limit INT DEFAULT 10,
+  p_offset INT DEFAULT 0
+)
 RETURNS JSON AS $$
 DECLARE
     result JSON;
 BEGIN
-    EXECUTE format('SELECT json_agg(t) FROM %I t', p_table_name) INTO result;
+    EXECUTE format(
+      'SELECT json_agg(t) FROM (
+         SELECT * FROM %I LIMIT %s OFFSET %s
+       ) t',
+       p_table_name, p_limit, p_offset
+    )
+    INTO result;
+
     RETURN result;
 END;
 $$ LANGUAGE plpgsql;
+
         
         `
     )
@@ -864,8 +991,8 @@ CREATE TABLE IF NOT EXISTS agile_cms.images (
   created_at  TIMESTAMPTZ   NOT NULL DEFAULT NOW()
 );
 
--- 2. image_galleries table
-CREATE TABLE IF NOT EXISTS agile_cms.image_galleries (
+-- 2. utbl_image_galleries table
+CREATE TABLE IF NOT EXISTS agile_cms.utbl_image_galleries (
   image_gallery_id SERIAL     PRIMARY KEY,
   image_id         INT         NOT NULL
     REFERENCES agile_cms.images(image_id)
@@ -874,8 +1001,8 @@ CREATE TABLE IF NOT EXISTS agile_cms.image_galleries (
 );
 
 -- 3. Index to speed up joins/filters on image_id
-CREATE INDEX IF NOT EXISTS idx_image_galleries_image_id
-  ON agile_cms.image_galleries(image_id);
+CREATE INDEX IF NOT EXISTS idx_utbl_image_galleries_image_id
+  ON agile_cms.utbl_image_galleries(image_id);
 
 -- 4. FUNCTION: create_image
 CREATE OR REPLACE FUNCTION agile_cms.create_image(
@@ -914,7 +1041,7 @@ RETURNS TABLE (
 LANGUAGE plpgsql AS $$
 BEGIN
   RETURN QUERY
-    INSERT INTO agile_cms.image_galleries AS ig(image_id, url)
+    INSERT INTO agile_cms.utbl_image_galleries AS ig(image_id, url)
     VALUES (p_image_id, p_url)
     RETURNING
       ig.image_gallery_id,
@@ -962,19 +1089,19 @@ RETURNS TABLE (
 )
 LANGUAGE sql AS $$
   SELECT image_gallery_id, image_id, url
-    FROM agile_cms.image_galleries
+    FROM agile_cms.utbl_image_galleries
    WHERE image_gallery_id = p_image_gallery_id;
 $$;
 
 -- 9. FUNCTION: list all gallery entries
-CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries()
-RETURNS SETOF agile_cms.image_galleries
+CREATE OR REPLACE FUNCTION agile_cms.list_utbl_image_galleries()
+RETURNS SETOF agile_cms.utbl_image_galleries
 LANGUAGE sql AS $$
-  SELECT * FROM agile_cms.image_galleries;
+  SELECT * FROM agile_cms.utbl_image_galleries;
 $$;
 
 -- 10. FUNCTION: list all gallery entries for a given image
-CREATE OR REPLACE FUNCTION agile_cms.list_image_galleries_by_image(
+CREATE OR REPLACE FUNCTION agile_cms.list_utbl_image_galleries_by_image(
   p_image_id INT
 )
 RETURNS TABLE (
@@ -984,7 +1111,7 @@ RETURNS TABLE (
 )
 LANGUAGE sql AS $$
   SELECT image_gallery_id, image_id, url
-    FROM agile_cms.image_galleries
+    FROM agile_cms.utbl_image_galleries
    WHERE image_id = p_image_id;
 $$;
 
@@ -1007,7 +1134,7 @@ LANGUAGE sql AS $$
     ig.image_gallery_id,
     ig.url
   FROM agile_cms.images AS i
-  LEFT JOIN agile_cms.image_galleries AS ig
+  LEFT JOIN agile_cms.utbl_image_galleries AS ig
     ON i.image_id = ig.image_id;
 $$;
 
