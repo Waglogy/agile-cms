@@ -359,7 +359,20 @@ BEGIN
     SELECT key, value FROM jsonb_each(p_data)
   LOOP
     v_cols := v_cols || quote_ident(col_name) || ', ';
-   v_vals := v_vals || quote_literal(col_val::text)::TEXT
+  v_vals := v_vals || quote_literal(col_val::text)
+      || CASE
+           WHEN (
+             SELECT data_type = 'jsonb'
+             FROM information_schema.columns
+             WHERE table_name  = p_table_name
+               AND column_name = col_name
+             LIMIT 1
+           )
+           THEN '::jsonb'
+           ELSE ''
+         END
+      || ', ';
+
       || CASE
            WHEN (
              SELECT data_type = 'jsonb'
