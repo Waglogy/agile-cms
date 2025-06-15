@@ -402,7 +402,7 @@ $$ LANGUAGE plpgsql;
       DECLARE
           row_count INT;
       BEGIN
-          EXECUTE format('DELETE FROM %I WHERE id = %s;', table_name, record_id);
+          EXECUTE format('DELETE FROM agile_cms.%I WHERE id = %s;', table_name, record_id);
           GET DIAGNOSTICS row_count = ROW_COUNT;
           IF row_count > 0 THEN RETURN TRUE; ELSE RETURN FALSE; END IF;
       EXCEPTION WHEN OTHERS THEN RETURN FALSE;
@@ -418,18 +418,18 @@ DECLARE
   current_version INT;
 BEGIN
   -- Get current version of the target row
-  EXECUTE format('SELECT version FROM %I WHERE id = %L', p_table, p_id)
+  EXECUTE format('SELECT version FROM agile_cms.%I WHERE id = %L', p_table, p_id)
   INTO current_version;
 
   -- Archive any other published rows
   EXECUTE format(
-    'UPDATE %I SET status = ''archived'' WHERE status = ''published'' AND id != %L',
+    'UPDATE agile_cms.%I SET status = ''archived'' WHERE status = ''published'' AND id != %L',
     p_table, p_id
   );
 
   -- Promote this row to published
   EXECUTE format(
-    'UPDATE %I SET status = ''published'', published_at = NOW(), version = %s WHERE id = %s',
+    'UPDATE agile_cms.%I SET status = ''published'', published_at = NOW(), version = %s WHERE id = %s',
     p_table, current_version + 1, p_id
   );
 
@@ -450,7 +450,7 @@ DECLARE
   result JSON;
 BEGIN
   EXECUTE format(
-    'SELECT json_agg(t) FROM %I t WHERE status = %L',
+    'SELECT json_agg(t) FROM agile_cms.%I t WHERE status = %L',
     p_table, p_status
   ) INTO result;
   RETURN result; 
@@ -718,7 +718,7 @@ $$ LANGUAGE plpgsql;
         END IF;
 
         -- Execute dynamic SQL to drop the table
-        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', p_table_name);
+        EXECUTE format('DROP TABLE IF EXISTS agile_cms.%I CASCADE;', p_table_name);
 
         RETURN QUERY SELECT TRUE, format('Table "%s" deleted successfully', p_table_name);
     EXCEPTION
@@ -822,7 +822,7 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = p_table_name AND column_name = p_column_name
     ) THEN
-        EXECUTE format('ALTER TABLE %I DROP COLUMN %I;', p_table_name, p_column_name);
+        EXECUTE format('ALTER TABLE agile_cms.%I DROP COLUMN %I;', p_table_name, p_column_name);
         RETURN TRUE;
     ELSE
         RETURN FALSE;  -- Column does not exist
@@ -845,7 +845,7 @@ RETURNS JSON AS $$
 DECLARE
     result JSON;
 BEGIN
-    EXECUTE format('SELECT json_agg(t) FROM %I t', p_table_name) INTO result;
+    EXECUTE format('SELECT json_agg(t) FROM agile_cms.%I t', p_table_name) INTO result;
     RETURN result;
 END;
 $$ LANGUAGE plpgsql;

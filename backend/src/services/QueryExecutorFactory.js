@@ -41,7 +41,7 @@ class QueryExecutor {
 
   async deleteData(tableName, id) {
     const result = await this.client.query(
-      'SELECT delete_content_type_data($1, $2)',
+      'SELECT agile_cms.delete_content_type_data($1, $2)',
       [tableName, id]
     )
     await this.insertLogEntry('delete_row', 'system', tableName, id)
@@ -50,7 +50,7 @@ class QueryExecutor {
 
   async deleteCollection(tableName) {
     const result = await this.client.query(
-      'SELECT * FROM delete_collection($1)',
+      'SELECT * FROM agile_cms.delete_collection($1)',
       [tableName]
     )
     const { success, message } = result.rows[0]
@@ -118,14 +118,14 @@ class QueryExecutor {
 
   async deleteAttributeFromCollection(tableName, columnName) {
     const result = await this.client.query(
-      'SELECT delete_attribute_from_collection($1, $2)',
+      'SELECT agile_cms.delete_attribute_from_collection($1, $2)',
       [tableName, columnName]
     )
     return result.rows[0].delete_attribute_from_collection
   }
 
   async getCollectionData(tableName) {
-    const result = await this.client.query('SELECT get_collection_data($1)', [
+    const result = await this.client.query('SELECT agile_cms.get_collection_data($1)', [
       tableName,
     ])
     return result.rows[0].get_collection_data
