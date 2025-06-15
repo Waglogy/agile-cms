@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react'
 import { LayoutDashboard, FileText, Users, Plus } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../common/DashboardLayout'
 import axios from 'axios'
 
@@ -17,7 +16,6 @@ const StatCard = ({ icon: Icon, title, value }) => (
 )
 
 const AdminDashboard = () => {
-  const navigate = useNavigate()
   const [collections, setCollections] = useState([])
   const [logs, setLogs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -74,10 +72,6 @@ const AdminDashboard = () => {
     // { icon: Users, title: 'Managers', value: 0 },
   ]
 
-  const handleAddTable = () => {
-    navigate('/content-admin/create-table')
-  }
-
   return (
     <>
       <div className="bg-white p-5 rounded-xl shadow-sm border text-gray-700">
@@ -98,7 +92,7 @@ const AdminDashboard = () => {
           <StatCard key={i} {...stat} />
         ))}
       </div>
-
+     
       {/* Recent Tables */}
       <div className="bg-white rounded-xl p-4 shadow-sm border my-6">
         <h2 className="text-lg font-semibold mb-2 text-[#d90429]">
@@ -170,10 +164,7 @@ const AdminDashboard = () => {
           <h2 className="text-lg font-semibold text-[#d90429]">
             Table Assignments
           </h2>
-          <button
-            onClick={handleAddTable}
-            className="bg-[#d90429] hover:bg-[#a30220] text-white px-3 py-1 rounded text-sm flex items-center gap-1"
-          >
+          <button className="bg-[#d90429] hover:bg-[#a30220] text-white px-3 py-1 rounded text-sm flex items-center gap-1">
             <Plus size={16} /> Add Table
           </button>
         </div>

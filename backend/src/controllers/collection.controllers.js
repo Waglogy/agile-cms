@@ -3,6 +3,7 @@ import { collectionValidation } from '../validator/collection.validator.js'
 import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
+import { client } from '../services/initializeDatabase.js'
 
 function constraintToSql(constraints, type) {
   let parts = []
@@ -164,7 +165,7 @@ export async function deleteAttributeFromCollection(req, res, next) {
 // Retrieve data from a specific collection
 export async function getCollectionData(req, res, next) {
   const { tableName } = req.params
-  const { files } = req.query
+  const { files, limit = 10, offset = 0 } = req.query
 
   if (!tableName) {
     return next(new AppError(400, 'Table name is required'))
@@ -176,7 +177,12 @@ export async function getCollectionData(req, res, next) {
     if (files === 'true') {
       data = await req.queryExecutor.getCollectionDataWithImages(tableName)
     } else {
-      data = await req.queryExecutor.getCollectionData(tableName)
+
+      data = await req.queryExecutor.getCollectionData(
+        tableName,
+        parseInt(limit),
+        parseInt(offset)
+      )
     }
 
     return res.json({
@@ -188,6 +194,7 @@ export async function getCollectionData(req, res, next) {
     return next(new AppError(500, 'Failed to fetch data', err))
   }
 }
+
 
 // Insert new data into a collection
 export async function insertData(req, res, next) {
@@ -214,9 +221,22 @@ export async function insertData(req, res, next) {
       ));
     }
 
-    // 3) Insert the main row (all non-file fields)
-    const payload = { ...body };
-    const insertResult = await req.queryExecutor.insertData(collectionName, payload);
+
+    // 3) insert the row
+    const payload = { ...body }
+    // Sanitize string fields: remove accidental outer quotes like "\"draft\""
+    for (const key in payload) {
+      if (
+        typeof payload[key] === 'string' &&
+        payload[key].startsWith('"') &&
+        payload[key].endsWith('"')
+      ) {
+        payload[key] = payload[key].slice(1, -1)
+      }
+    }
+
+    const insertResult = await req.queryExecutor.insertData(collectionName, payload)
+
     if (!insertResult) {
       return res.status(500).json({
         status: false,
@@ -255,14 +275,38 @@ export async function insertData(req, res, next) {
       );
     }
 
-    // 6) log, 7) respond  (unchanged)
-    await req.queryExecutor.insertLogEntry(
-        'insert_row',
-        req.user?.email || 'system',
-        collectionName,
-        newRecordId,
-        { ...body }
-    );
+
+    await req.queryExecutor.updateData(collectionName, newRecordId, {
+      [imageField]: result.image_id,
+    })
+    await queryExecutor.insertLogEntry(
+      'insert_row',
+      req.user?.email || 'system',
+      collectionName,
+      newRecordId,
+      payload
+    )
+    // 7) fetch the inserted row and save snapshot
+    const existing = await client.query(
+      `SELECT to_jsonb(t) FROM ${collectionName} t WHERE id = $1`,
+      [newRecordId]
+    )
+
+    const oldData = existing.rows[0]?.to_jsonb
+
+    if (oldData) {
+      await client.query(
+        'SELECT agile_cms.save_content_version($1, $2, $3, $4)',
+        [collectionName, newRecordId, oldData, oldData.version || 1]
+      )
+    }
+
+    /* await queryExecutor.updateData(
+      collectionName,
+      newRecordId,
+      { images: uploadResults[0] } // first (and only) container
+    ) */
+
 
     return res.json({
       status: true,
@@ -278,6 +322,74 @@ export async function insertData(req, res, next) {
     ));
   }
 }
+export async function rollbackData(req, res, next) {
+  const { tableName, id, version } = req.body
+  if (!tableName || !id || !version) {
+    return next(new AppError(400, 'Missing rollback parameters'))
+  }
+
+  try {
+    const success = await queryExecutor.rollbackRow(tableName, id, version)
+    await queryExecutor.insertLogEntry(
+      'rollback_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      { version }
+    )
+
+    return res.json({
+      status: success,
+      message: success ? 'Rollback successful' : 'Rollback failed',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Rollback failed', err))
+  }
+}
+export async function getArchivedContent(req, res, next) {
+  const { tableName } = req.params
+  if (!tableName) return next(new AppError(400, 'Table name is required'))
+
+  try {
+    const data = await queryExecutor.getPublishedData(tableName, 'archived') // reuse the existing function
+    return res.json({
+      status: true,
+      message: 'Archived content retrieved',
+      data,
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to fetch archived data', err))
+  }
+}
+
+export async function archiveData(req, res, next) {
+  const { tableName, id } = req.body
+
+  if (!tableName || !id) {
+    return next(new AppError(400, 'Missing tableName or id'))
+  }
+
+  try {
+    const success = await queryExecutor.archiveRow(tableName, id)
+    await queryExecutor.insertLogEntry(
+      'archive_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      {}
+    )
+
+    return res.json({
+      status: success,
+      message: success
+        ? 'Row archived successfully'
+        : 'Archiving failed or no update made',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to archive row', err))
+  }
+}
+
 
 // Update existing data in a collection
 export async function updateData(req, res, next) {
