@@ -959,7 +959,7 @@ $$ LANGUAGE plpgsql STABLE;
     await client.query(
       `
          CREATE OR REPLACE FUNCTION agile_cms.get_collection_by_name(p_table_name TEXT)
-  RETURNS JSON AS $$
+RETURNS JSON AS $$
 DECLARE
   result JSON;
 BEGIN
@@ -974,14 +974,11 @@ BEGIN
          )
     INTO result
     FROM information_schema.columns
-   WHERE lower(table_name)  = lower(p_table_name)
-     AND table_schema       = 'agile_cms';  -- or change to your schema
-
+   WHERE lower(table_name) = lower(p_table_name)
+     AND table_schema      = 'agile_cms';
   RETURN result;
 END;
 $$ LANGUAGE plpgsql;
-
-        
         `
     )
 

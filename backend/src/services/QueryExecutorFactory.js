@@ -130,12 +130,14 @@ class QueryExecutor {
   }
 
   async getCollectionByName(tableName) {
-    const result = await this.client.query(
-      'SELECT agile_cms.get_collection_by_name($1)',
-      [tableName]
-    )
+    const { rows } = await this.client.query(
+        `SELECT agile_cms.get_collection_by_name($1) AS cols`,
+        [tableName]
+    );
 
-    return result.rows[0].get_collection_by_name
+    // If you want to guard against "empty array" meaning "no such table",
+    // you could still check rows[0].cols.length === 0 here
+    return rows[0].cols;
   }
 
   async deleteAttributeFromCollection(tableName, columnName) {
@@ -254,26 +256,32 @@ class QueryExecutor {
     return rows[0]?.meta // e.g. 'is_multiple=true' or null
   }
 
-  async getTableMetadata(tableName) {
-    // This will return one row per column, with its raw comment (e.g. "is_multiple=true")
+  async getTableMetadata(qualifiedTableName) {
     const sql = `
       SELECT
-        a.attname AS column_name,
+        a.attname           AS column_name,
         col_description(a.attrelid, a.attnum) AS meta
       FROM pg_attribute a
       WHERE
         a.attrelid = $1::regclass
-        AND a.attnum > 0
-        AND NOT a.attisdropped
-    `
+      AND a.attnum  >  0
+      AND NOT a.attisdropped
+    `;
 
-    const { rows } = await this.client.query(sql, [tableName])
-
-    // Build a JS object: { column_name: meta, … }
-    return rows.reduce((acc, { column_name, meta }) => {
-      acc[column_name] = meta
-      return acc
-    }, {})
+    try {
+      const { rows } = await this.client.query(sql, [`agile_cms.${qualifiedTableName}`]);
+      // If the table doesn't exist, Postgres will throw a 0A000 or undefined-regclass error
+      return rows.reduce((acc, { column_name, meta }) => {
+        acc[column_name] = meta;
+        return acc;
+      }, {});
+    } catch (err) {
+      // Optionally handle “table not found” more gracefully
+      if (err.code === '42P01' /* undefined_table */) {
+        throw new Error(`Table "${qualifiedTableName}" not found`);
+      }
+      throw err;
+    }
   }
 
   // **************** Image & Gallery CREATE methods ****************

@@ -125,6 +125,7 @@ export async function getCollectionByName(req, res, next) {
 
   try {
     const collection = await req.queryExecutor.getCollectionByName(tableName)
+    console.log(collection)
     const meta_data = await req.queryExecutor.getTableMetadata(tableName)
     return res.json({
       status: true,
