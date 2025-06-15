@@ -1,11 +1,8 @@
-import queryExecutor from '../services/QueryExecutorFactory.js'
+// import req.queryExecutor from '../services/req.queryExecutorFactory.js'
 import { collectionValidation } from '../validator/collection.validator.js'
 import joiValidator from '../utils/joiValidator.js'
 import AppError from '../utils/AppError.js'
 import { imageUploader } from '../utils/fileHandler.util.js'
-import { client } from '../services/initializeDatabase.js'
-
-
 
 function constraintToSql(constraints, type) {
   let parts = []
@@ -44,12 +41,12 @@ export async function createTable(req, res, next) {
       field.constraints = constraintToSql(field.constraints, field.type)
     }
 
-    const success = await queryExecutor.createCollection(
+    const success = await req.queryExecutor.createCollection(
       validation.value.tableName,
       schema
     )
 
-    await queryExecutor.insertLogEntry(
+    await req.queryExecutor.insertLogEntry(
       'create_collection',
       req.user?.email || 'system',
       validation.value.tableName,
@@ -66,7 +63,6 @@ export async function createTable(req, res, next) {
   }
 }
 
-
 // Delete a specific collection (table)
 export async function deleteCollection(req, res, next) {
   const { collectionName } = req.body
@@ -76,8 +72,8 @@ export async function deleteCollection(req, res, next) {
   }
 
   try {
-    const success = await queryExecutor.deleteCollection(collectionName)
-    await queryExecutor.insertLogEntry(
+    const success = await req.queryExecutor.deleteCollection(collectionName)
+    await req.queryExecutor.insertLogEntry(
       'delete_collection',
       req.user?.email || 'system',
       collectionName,
@@ -85,7 +81,7 @@ export async function deleteCollection(req, res, next) {
       {}
     )
 
-    await queryExecutor.insertLogEntry(
+    await req.queryExecutor.insertLogEntry(
       'delete_collection',
       req.user?.email || 'system',
       collectionName,
@@ -107,7 +103,7 @@ export async function deleteCollection(req, res, next) {
 // Retrieve all collections (tables) in the database
 export async function getAllCollections(req, res, next) {
   try {
-    const collections = await queryExecutor.getAllCollections()
+    const collections = await req.queryExecutor.getAllCollections()
     return res.json({
       status: true,
       message: 'Collections retrieved successfully',
@@ -127,8 +123,9 @@ export async function getCollectionByName(req, res, next) {
   }
 
   try {
-    const collection = await queryExecutor.getCollectionByName(tableName)
-    const meta_data = await queryExecutor.getTableMetadata(tableName)
+    const collection = await req.queryExecutor.getCollectionByName(tableName)
+    console.log(collection)
+    const meta_data = await req.queryExecutor.getTableMetadata(tableName)
     return res.json({
       status: true,
       message: 'Collection retrieved successfully',
@@ -149,7 +146,7 @@ export async function deleteAttributeFromCollection(req, res, next) {
   }
 
   try {
-    const success = await queryExecutor.deleteAttributeFromCollection(
+    const success = await req.queryExecutor.deleteAttributeFromCollection(
       tableName,
       columnName
     )
@@ -177,9 +174,9 @@ export async function getCollectionData(req, res, next) {
     let data
 
     if (files === 'true') {
-      data = await queryExecutor.getCollectionDataWithImages(tableName)
+      data = await req.queryExecutor.getCollectionDataWithImages(tableName)
     } else {
-      data = await queryExecutor.getCollectionData(
+      data = await req.queryExecutor.getCollectionData(
         tableName,
         parseInt(limit),
         parseInt(offset)
@@ -196,21 +193,20 @@ export async function getCollectionData(req, res, next) {
   }
 }
 
-
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
-    const { collectionName, imageField, ...body } = req.body
-
+    // 1) Required params
+    const { collectionName, ...body } = req.body
     if (!collectionName) {
       return next(
         new AppError(400, 'Data insert failed', 'Please enter collection name')
       )
     }
 
-    // 1) make sure the collection exists
-    const collection = await queryExecutor.getCollectionByName(
-      String(collectionName).toString()
+    // 2) Ensure the collection exists
+    const collection = await req.queryExecutor.getCollectionByName(
+      String(collectionName)
     )
     if (!collection) {
       return next(
@@ -237,67 +233,54 @@ export async function insertData(req, res, next) {
 
     const insertResult = await queryExecutor.insertData(collectionName, payload)
     if (!insertResult) {
-      return res
-        .status(500)
-        .json({ status: false, message: 'Data insertion failed' })
+      return res.status(500).json({
+        status: false,
+        message: 'Data insertion failed',
+      })
     }
+    const newRecordId = insertResult.id
 
-    const newRecordId = insertResult.id // inserted data on the main table.
+    // 4) group by field name
+    const filesArray = Array.isArray(req.files) ? req.files : []
+    const fileMap = filesArray.reduce((map, file) => {
+      map[file.fieldname] = map[file.fieldname] || []
+      map[file.fieldname].push(file)
+      return map
+    }, {})
 
-    const rawFiles = req.files?.image || []
-    const files = Array.isArray(rawFiles) ? rawFiles : [rawFiles]
-
-    // now call the uploader with that array:
-    const uploadResults = files.length ? await imageUploader(files) : []
-
-    const result = await queryExecutor.createImage(
-      'Test Title',
-      'Test Description'
-    )
-
-    for (const container of uploadResults) {
-      await queryExecutor.createImageGallery(
-        result.image_id, // /* parentId:  */ newRecordId,
-        /* url:  */ container // JSONB object
+    // 5) for each dynamic file‐field:
+    for (const [fieldName, files] of Object.entries(fileMap)) {
+      // --- A) create a single metadata row for this field
+      const { image_id } = await req.queryExecutor.createImage(
+        `Auto for ${fieldName}`,
+        `Uploaded by user`
       )
+
+      // --- B) upload & gallery all files under that one image_id
+      const uploadContainers = await imageUploader(files)
+      for (const container of uploadContainers) {
+        await req.queryExecutor.createImageGallery(image_id, container)
+      }
+
+      // --- C) point your test_table FK at that one image_id
+      await req.queryExecutor.updateData(collectionName, newRecordId, {
+        [fieldName]: image_id,
+      })
     }
 
-    await queryExecutor.updateData(collectionName, newRecordId, {
-      [imageField]: result.image_id,
-    })
-    await queryExecutor.insertLogEntry(
+    // 6) log, 7) respond  (unchanged)
+    await req.queryExecutor.insertLogEntry(
       'insert_row',
       req.user?.email || 'system',
       collectionName,
       newRecordId,
-      payload
-    )
-    // 7) fetch the inserted row and save snapshot
-    const existing = await client.query(
-      `SELECT to_jsonb(t) FROM ${collectionName} t WHERE id = $1`,
-      [newRecordId]
+      { ...body }
     )
 
-    const oldData = existing.rows[0]?.to_jsonb
-
-    if (oldData) {
-      await client.query(
-        'SELECT agile_cms.save_content_version($1, $2, $3, $4)',
-        [collectionName, newRecordId, oldData, oldData.version || 1]
-      )
-    }
-
-    /* await queryExecutor.updateData(
-      collectionName,
-      newRecordId,
-      { images: uploadResults[0] } // first (and only) container
-    ) */
-
-    // 8) respond
     return res.json({
       status: true,
       message: 'Data inserted successfully',
-      data: { id: newRecordId, ...payload },
+      data: { id: newRecordId, ...body },
     })
   } catch (error) {
     console.error(error)
@@ -372,7 +355,6 @@ export async function archiveData(req, res, next) {
   }
 }
 
-
 // Update existing data in a collection
 export async function updateData(req, res, next) {
   const validation = joiValidator(collectionValidation.updateData, req)
@@ -380,12 +362,12 @@ export async function updateData(req, res, next) {
     return next(new AppError(400, 'Validation failed', validation.errors))
 
   try {
-    const success = await queryExecutor.updateData(
+    const success = await req.queryExecutor.updateData(
       validation.value.tableName,
       validation.value.id,
       validation.value.updateData
     )
-    await queryExecutor.insertLogEntry(
+    await req.queryExecutor.insertLogEntry(
       'update_row',
       req.user?.email || 'system',
       validation.value.tableName,
@@ -409,11 +391,11 @@ export async function deleteData(req, res, next) {
     return next(new AppError(400, 'Validation failed', validation.errors))
 
   try {
-    const success = await queryExecutor.deleteData(
+    const success = await req.queryExecutor.deleteData(
       validation.value.tableName,
       validation.value.id
     )
-    await queryExecutor.insertLogEntry(
+    await req.queryExecutor.insertLogEntry(
       'delete_row',
       req.user?.email || 'system',
       validation.value.tableName,
@@ -449,7 +431,7 @@ export async function alterCollection(req, res, next) {
   } = validation.value
 
   try {
-    const result = await queryExecutor.alterCollectionSmart({
+    const result = await req.queryExecutor.alterCollectionSmart({
       action,
       tableName,
       columnName,
@@ -459,7 +441,7 @@ export async function alterCollection(req, res, next) {
       comment,
     })
 
-    await queryExecutor.insertLogEntry(
+    await req.queryExecutor.insertLogEntry(
       'alter_collection',
       req.user?.email || 'system',
       tableName,
@@ -491,8 +473,8 @@ export async function publishData(req, res, next) {
   }
 
   try {
-    const success = await queryExecutor.publishRow(tableName, id)
-    await queryExecutor.insertLogEntry(
+    const success = await req.queryExecutor.publishRow(tableName, id)
+    await req.queryExecutor.insertLogEntry(
       'publish_row',
       req.user?.email || 'system',
       tableName,
@@ -516,7 +498,7 @@ export async function getPublishedContent(req, res, next) {
   if (!tableName) return next(new AppError(400, 'Table name is required'))
 
   try {
-    const data = await queryExecutor.getPublishedData(tableName)
+    const data = await req.queryExecutor.getPublishedData(tableName)
     return res.json({
       status: true,
       message: 'Published content retrieved',
@@ -529,7 +511,7 @@ export async function getPublishedContent(req, res, next) {
 
 export async function getSystemLogs(req, res, next) {
   try {
-    const logs = await queryExecutor.getSystemLogs()
+    const logs = await req.queryExecutor.getSystemLogs()
     return res.json({
       status: true,
       message: 'Logs retrieved successfully',

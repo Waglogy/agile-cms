@@ -164,6 +164,45 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
     }
     return ''
   }
+  const isImageUrl = (value) => {
+    if (!value) return false
+    if (typeof value === 'string') {
+      // Detect base64 or image URLs
+      return (
+        value.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
+      )
+    }
+    if (typeof value === 'object' && value !== null) {
+      // If any key in the object is a valid image (recursive for thumb/large/medium)
+      return ['thumb', 'large', 'medium'].some(
+        (size) =>
+          value[size] &&
+          ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
+            (typeof value[size] === 'object' &&
+              (isImageUrl(value[size].base64) ||
+                isImageUrl(value[size].imagePath))))
+      )
+    }
+    return false
+  }
+  const getImageSrc = (value) => {
+    if (!value) return ''
+    if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
+    if (typeof value === 'object' && value !== null) {
+      // Prefer thumb, then large, then medium (customize order as you like)
+      const sizeOrder = ['thumb', 'large', 'medium']
+      for (let size of sizeOrder) {
+        if (value[size]) {
+          // Nested: can be base64 or imagePath string
+          if (typeof value[size] === 'string') return value[size]
+          if (value[size].base64) return value[size].base64
+          if (value[size].imagePath) return value[size].imagePath
+        }
+      }
+    }
+    return ''
+  }
 
   // Filter records based on search term
   const filteredRecords = records.filter((row) =>
@@ -340,9 +379,11 @@ const CollectionViewer = () => {
         // 2) Fetch data for each collection in parallel (only for non-excluded tables)
         const allFetches = names.map(async (colName) => {
           try {
-            const r = await axios.get(
-              `http://localhost:8000/api/collection/data/${colName}?files=false`
+            const r = await api.get(
+              `/api/collection/data/${colName}?files=false`
             )
+            console.log(r);
+
             return { name: colName, rows: r?.data?.data || [] }
           } catch (err) {
             console.error(`Failed to load data for ${colName}`, err)
@@ -366,7 +407,8 @@ const CollectionViewer = () => {
     }
 
     fetchAll()
-  }, [showAppMessage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Filter collections based on search
   const filteredCollections = collections.filter((name) =>

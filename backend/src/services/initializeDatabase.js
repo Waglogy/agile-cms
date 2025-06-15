@@ -2,23 +2,20 @@ import pg from 'pg'
 import envConfig from '../config/env.config.js'
 // import client from '../config/db.config.js'
 
-const { Client } = pg
+const { Client, Pool } = pg
 
-// Connect to PostgreSQL (without specifying database)
-const adminClient = new Client({
-  host: envConfig.PG_HOST,
-  user: envConfig.PG_USER,
-  password: envConfig.PG_PASSWORD,
-  port: envConfig.PG_PORT,
-  database: 'postgres', // Connect to the default database first
-})
-
-let client
 async function initializeDatabase(db_name) {
-  client = new Client({
+  const adminClient = new Client({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
-    password: envConfig.PG_PASSWORD,
+    password: `${envConfig.PG_PASSWORD}`,
+    port: envConfig.PG_PORT,
+    database: 'postgres',
+  })
+  const client = new Pool({
+    host: envConfig.PG_HOST,
+    user: envConfig.PG_USER,
+    password: `${envConfig.PG_PASSWORD}`,
     port: envConfig.PG_PORT,
     database: String(db_name).toLowerCase(),
   })
@@ -47,6 +44,7 @@ async function initializeDatabase(db_name) {
 
     // ✅ Connect to the created database
     await client.connect()
+
     // console.log()
     await client.query(`CREATE SCHEMA IF NOT EXISTS agile_cms;`)
     await client.query(`SET search_path TO agile_cms;`)
@@ -68,7 +66,7 @@ async function initializeDatabase(db_name) {
     if (initCheck.rows.length > 0 && initCheck.rows[0].value === 'true') {
       console.log('✅ Database is already initialized. Skipping setup.')
       // await client.end()
-      return
+      return client
     }
 
     console.log('🚀 Running database initialization...')
@@ -194,7 +192,7 @@ BEGIN
 
   -- 2) Create the table with an auto-incrementing id PK + your columns
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS %I (
+    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
        id     SERIAL PRIMARY KEY
        %s
      )',
@@ -213,7 +211,7 @@ BEGIN
     is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
 
     EXECUTE format(
-      'COMMENT ON COLUMN %I.%I IS %L',
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
       tbl_name,
       col_name,
       format('is_multiple=%s', is_mult)
@@ -329,7 +327,7 @@ BEGIN
 
   -- 4) Create the dynamic table
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS %I (
+    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
        id SERIAL PRIMARY KEY,
        %s
      )',
@@ -343,7 +341,7 @@ BEGIN
   LOOP
     is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
     EXECUTE format(
-      'COMMENT ON COLUMN %I.%I IS %L',
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
       tbl_name,
       col_name,
       format('is_multiple=%s', is_mult)
@@ -413,8 +411,8 @@ BEGIN
 
   -- 4) Insert and return the full row
   EXECUTE format(
-    'INSERT INTO %I AS t (%s) VALUES (%s)
-     RETURNING to_jsonb(t)',
+    'INSERT INTO agile_cms.%I AS t (%s) VALUES (%s)
+       RETURNING to_jsonb(t)',
     p_table_name,
     v_cols,
     v_vals
@@ -432,7 +430,7 @@ $$ LANGUAGE plpgsql;
       DECLARE
           row_count INT;
       BEGIN
-          EXECUTE format('DELETE FROM %I WHERE id = %s;', table_name, record_id);
+          EXECUTE format('DELETE FROM agile_cms.%I WHERE id = %s;', table_name, record_id);
           GET DIAGNOSTICS row_count = ROW_COUNT;
           IF row_count > 0 THEN RETURN TRUE; ELSE RETURN FALSE; END IF;
       EXCEPTION WHEN OTHERS THEN RETURN FALSE;
@@ -448,18 +446,18 @@ DECLARE
   current_version INT;
 BEGIN
   -- Get current version of the target row
-  EXECUTE format('SELECT version FROM %I WHERE id = %L', p_table, p_id)
+  EXECUTE format('SELECT version FROM agile_cms.%I WHERE id = %L', p_table, p_id)
   INTO current_version;
 
   -- Archive any other published rows
   EXECUTE format(
-    'UPDATE %I SET status = ''archived'' WHERE status = ''published'' AND id != %L',
+    'UPDATE agile_cms.%I SET status = ''archived'' WHERE status = ''published'' AND id != %L',
     p_table, p_id
   );
 
   -- Promote this row to published
   EXECUTE format(
-    'UPDATE %I SET status = ''published'', published_at = NOW(), version = %s WHERE id = %s',
+    'UPDATE agile_cms.%I SET status = ''published'', published_at = NOW(), version = %s WHERE id = %s',
     p_table, current_version + 1, p_id
   );
 
@@ -480,7 +478,7 @@ DECLARE
   result JSON;
 BEGIN
   EXECUTE format(
-    'SELECT json_agg(t) FROM %I t WHERE status = %L',
+    'SELECT json_agg(t) FROM agile_cms.%I t WHERE status = %L',
     p_table, p_status
   ) INTO result;
   RETURN result; 
@@ -526,7 +524,7 @@ $$ LANGUAGE plpgsql;
           PERFORM agile_cms.save_content_version(table_name, id, result, current_version);
           
           -- Execute update
-          EXECUTE format('UPDATE %I SET %s WHERE id = %s', table_name, update_pairs, id);
+          EXECUTE format('UPDATE agile_cms.%I SET %s WHERE id = %s', table_name, update_pairs, id);
           
           GET DIAGNOSTICS row_count = ROW_COUNT;
           RETURN row_count > 0;
@@ -833,7 +831,7 @@ $$ LANGUAGE plpgsql;
         END IF;
 
         -- Execute dynamic SQL to drop the table
-        EXECUTE format('DROP TABLE IF EXISTS %I CASCADE;', p_table_name);
+        EXECUTE format('DROP TABLE IF EXISTS agile_cms.%I CASCADE;', p_table_name);
 
         RETURN QUERY SELECT TRUE, format('Table "%s" deleted successfully', p_table_name);
     EXCEPTION
@@ -898,7 +896,7 @@ $$ LANGUAGE plpgsql STABLE;
     await client.query(
       `
          CREATE OR REPLACE FUNCTION agile_cms.get_collection_by_name(p_table_name TEXT)
-  RETURNS JSON AS $$
+RETURNS JSON AS $$
 DECLARE
   result JSON;
 BEGIN
@@ -913,14 +911,11 @@ BEGIN
          )
     INTO result
     FROM information_schema.columns
-   WHERE lower(table_name)  = lower(p_table_name)
-     AND table_schema       = 'agile_cms';  -- or change to your schema
-
+   WHERE lower(table_name) = lower(p_table_name)
+     AND table_schema      = 'agile_cms';
   RETURN result;
 END;
 $$ LANGUAGE plpgsql;
-
-        
         `
     )
 
@@ -937,7 +932,7 @@ BEGIN
         SELECT 1 FROM information_schema.columns
         WHERE table_name = p_table_name AND column_name = p_column_name
     ) THEN
-        EXECUTE format('ALTER TABLE %I DROP COLUMN %I;', p_table_name, p_column_name);
+        EXECUTE format('ALTER TABLE agile_cms.%I DROP COLUMN %I;', p_table_name, p_column_name);
         RETURN TRUE;
     ELSE
         RETURN FALSE;  -- Column does not exist
@@ -966,7 +961,7 @@ DECLARE
 BEGIN
     EXECUTE format(
       'SELECT json_agg(t) FROM (
-         SELECT * FROM %I LIMIT %s OFFSET %s
+         SELECT * FROM agile_cms.%I LIMIT %s OFFSET %s
        ) t',
        p_table_name, p_limit, p_offset
     )
@@ -1139,10 +1134,12 @@ LANGUAGE sql AS $$
 $$;
 
         `)
+
+    // return the client
+    return client
   } catch (error) {
     console.error('❌ Database initialization failed:', error)
   }
 }
 
 export default initializeDatabase
-export { client }
