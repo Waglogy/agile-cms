@@ -16,6 +16,8 @@ const Header = ({ toggleSidebar }) => {
   const displayRole =
     role === 'content_admin' ? 'Content Admin' : 'Content Manager'
 
+
+
   return (
     <header className="bg-[#fefce8] mx-4 md:mx-6 mt-4 rounded-xl shadow-md">
       <div className="max-w-screen-xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center">
@@ -40,6 +42,8 @@ const Header = ({ toggleSidebar }) => {
       </div>
     </header>
   )
+
+
 }
 
 export default Header

@@ -47,22 +47,28 @@ const Sidebar = ({ mobile }) => {
       roles: ['content_admin', 'content_manager'],
     },
     {
+      to: `/content-manager/collection-view`,
+      label: 'show tables',
+      icon: <Eye size={28} />,
+      roles: ['content_manager'],
+    },
+    {
       to: `${basePath}/insert-data`,
       label: 'Add data',
       icon: <PlusSquare size={28} />,
-      roles: ['content_admin'],
+      roles: ['content_admin', 'content_manager'],
     },
     {
       to: `${basePath}/collection-view`,
       label: 'Show Tables',
       icon: <Eye size={28} />,
-      roles: ['content_admin', 'content_manager'],
+      roles: ['content_admin'],
     },
     {
       to: `${basePath}/your-apis`,
       label: 'Your APIs',
       icon: <Code size={28} />,
-      roles: ['content_admin', 'content_manager'],
+      roles: ['content_admin'],
     },
     {
       to: `${basePath}/update-data`,
@@ -77,9 +83,8 @@ const Sidebar = ({ mobile }) => {
 
   return (
     <aside
-      className={`w-64 h-full bg-[#e75024] p-4 ${
-        mobile ? '' : 'border-r border-[#b90325]'
-      }`}
+      className={`w-64 h-full bg-[#e75024] p-4 ${mobile ? '' : 'border-r border-[#b90325]'
+        }`}
     >
       <div className="text-[#fefefe] text-2xl font-bold mb-6 px-2 tracking-tight">
         Agile CMS – Build, Edit, Publish… Faster
@@ -91,11 +96,10 @@ const Sidebar = ({ mobile }) => {
             <Link
               key={to}
               to={to}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-[#facc15] text-[#1f1f1f]'
-                  : 'text-[#fefefe] hover:bg-[#b90325] hover:text-white'
-              }`}
+              className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-all duration-150 ${isActive
+                ? 'bg-[#facc15] text-[#1f1f1f]'
+                : 'text-[#fefefe] hover:bg-[#b90325] hover:text-white'
+                }`}
             >
               {icon}
               <span>{label}</span>

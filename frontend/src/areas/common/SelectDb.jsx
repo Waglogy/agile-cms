@@ -7,7 +7,12 @@ import API_BASE_URL from '../../api/config'
 const SelectDb = () => {
   const { state } = useLocation()
   const navigate = useNavigate()
+
+  // toggle between selecting vs. creating
+  const [mode, setMode] = useState('select')
   const [selectedDb, setSelectedDb] = useState('')
+  const [newDbName, setNewDbName] = useState('')
+
   const [availableDb, setAvailableDb] = useState([])
   const [status, setStatus] = useState('loading') // 'loading' | 'error' | 'success'
 
@@ -36,33 +41,33 @@ const SelectDb = () => {
     }
   }, [state, navigate])
 
-  const onSubmit = async (e) => {
+  const onSubmit = async e => {
     e.preventDefault()
-    if (!selectedDb) return
+    const dbName = mode === 'create' ? newDbName.trim() : selectedDb
+    if (!dbName) return
 
-    const role = state.role
-    const path =
-      role === 'content_admin'
-        ? '/content-admin/dashboard'
-        : role === 'content_manager'
-          ? '/content-manager/dashboard'
-          : '/'
+    try {
+      const response = await axios.post(
+        `${API_BASE_URL}/init`,
+        { db_name: dbName },
+        { withCredentials: true }
+      )
 
-    const response = await axios.post(`${API_BASE_URL}/init`, {
-      db_name: selectedDb
-    }, {
-      withCredentials: true
-    })
+      localStorage.setItem('token', response.data.jwtToken)
+      const role = state.role
+      const path =
+        role === 'content_admin'
+          ? '/content-admin/dashboard'
+          : role === 'content_manager'
+            ? '/content-manager/dashboard'
+            : '/'
 
-    console.log(response);
-
-    // save the jwt token in local storage.
-    localStorage.setItem('token', response?.data?.jwtToken)
-
-
-    navigate(path)
+      navigate(path)
+    } catch (err) {
+      console.error(err)
+      // handle error state if needed
+    }
   }
-
 
   return (
     <div className="h-screen w-screen bg-[#fefce8] flex items-center justify-center px-4">
@@ -71,27 +76,51 @@ const SelectDb = () => {
         className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md space-y-6"
       >
         <h2 className="text-2xl font-bold text-[#1f1f1f] text-center">
-          Select Database
+          {mode === 'select' ? 'Select Database' : 'Create New Database'}
         </h2>
+
+        {/* Mode toggle */}
+        <div className="flex justify-center gap-4">
+          <label className="inline-flex items-center">
+            <input
+              type="radio"
+              name="mode"
+              value="select"
+              checked={mode === 'select'}
+              onChange={() => setMode('select')}
+              className="form-radio"
+            />
+            <span className="ml-2">Select Existing</span>
+          </label>
+          <label className="inline-flex items-center">
+            <input
+              type="radio"
+              name="mode"
+              value="create"
+              checked={mode === 'create'}
+              onChange={() => setMode('create')}
+              className="form-radio"
+            />
+            <span className="ml-2">Create New</span>
+          </label>
+        </div>
 
         {status === 'loading' && (
           <p className="text-center text-gray-500">Loading databases...</p>
         )}
-
         {status === 'error' && (
           <p className="text-center text-red-500">Failed to load databases.</p>
         )}
 
-        {status === 'success' && (
+        {status === 'success' && mode === 'select' && (
           <div>
-            <label className="block text-gray-700 mb-1" htmlFor="db">
+            <label htmlFor="db" className="block text-gray-700 mb-1">
               Choose a database
             </label>
             <select
               id="db"
-              name="db"
               value={selectedDb}
-              onChange={(e) => setSelectedDb(e.target.value)}
+              onChange={e => setSelectedDb(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e75024]"
             >
@@ -99,27 +128,51 @@ const SelectDb = () => {
                 -- Select DB --
               </option>
               {availableDb
-                .filter((dbObj) => dbObj.datname !== 'template0' && dbObj.datname !== 'template1' && dbObj.datname !== 'postgres')
-                .map((dbObj) => (
-                  <option key={dbObj.datname} value={dbObj.datname}>
-                    {dbObj.datname}
+                .filter(
+                  db =>
+                    !['template0', 'template1', 'postgres'].includes(db.datname)
+                )
+                .map(db => (
+                  <option key={db.datname} value={db.datname}>
+                    {db.datname}
                   </option>
                 ))}
-
             </select>
           </div>
         )}
 
+        {mode === 'create' && (
+          <div>
+            <label htmlFor="newDb" className="block text-gray-700 mb-1">
+              New Database Name
+            </label>
+            <input
+              id="newDb"
+              type="text"
+              value={newDbName}
+              onChange={e => setNewDbName(e.target.value)}
+              required
+              placeholder="e.g. herekrishna"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e75024]"
+            />
+          </div>
+        )}
 
         <button
           type="submit"
-          disabled={status !== 'success'}
-          className={`w-full py-3 text-white font-semibold rounded-lg transition ${status === 'success'
-            ? 'bg-[#e75024] hover:bg-[#b60323]'
-            : 'bg-gray-400 cursor-not-allowed'
+          disabled={
+            mode === 'select'
+              ? status !== 'success' || !selectedDb
+              : newDbName.trim() === ''
+          }
+          className={`w-full py-3 text-white font-semibold rounded-lg transition ${(mode === 'select'
+              ? status === 'success' && selectedDb
+              : newDbName.trim())
+              ? 'bg-[#e75024] hover:bg-[#b60323]'
+              : 'bg-gray-400 cursor-not-allowed'
             }`}
         >
-          Continue
+          {mode === 'select' ? 'Continue' : 'Create & Continue'}
         </button>
       </form>
     </div>

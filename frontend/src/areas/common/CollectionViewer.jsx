@@ -392,7 +392,7 @@ const CollectionViewer = () => {
         const allFetches = names.map(async (colName) => {
           try {
             const r = await axios.get(
-              `http://localhost:8000/api/collection/data/${colName}?files=false`, {
+              `http://lo/api/collection/data/${colName}?files=false`, {
               headers: {
                 'auth-token': localStorage.getItem("token")
               }

@@ -12,6 +12,7 @@ import WelcomeLogin from './areas/common/login'
 import SelectDb from './areas/common/SelectDb'
 import ContentManagerDashboard from './areas/content-manager/Dashboard'
 import AddDataToTable from './areas/content-manager/AddData-To-Table'
+import CollectinContentMAnger from './areas/content-manager/ViewCollection'
 
 // ✅ Mock table data for TableManager
 const mockTables = [
@@ -67,18 +68,18 @@ function App() {
           />
           <Route
             path="content-manager/insert-data"
-            element={<AddDataToTable />}
+            element={< InsertRecordForm />}
           />
           <Route
             path="content-manager/collection-view"
-            element={<CollectionViewer />}
+            element={<CollectinContentMAnger />}
           />
           <Route path="content-manager/your-apis" element={<YourAPIs />} />
           <Route
             path="content-manager/activity-logs"
             element={<ActivityLogs />}
           />
-          
+
           <Route
             path="content-admin/manage-tables"
             element={
@@ -88,7 +89,7 @@ function App() {
                   console.log('Updated table:', updatedTable)
                 }}
               />
-              
+
             }
           />
         </Route>
