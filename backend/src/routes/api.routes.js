@@ -89,11 +89,11 @@ apiRouter.post('/init', async (req, res) => {
 
 apiRouter.get('/list-databases', async (req, res) => {
     const defaultDbClient = new pg.Client({
-        host: 'localhost',
-        user: 'postgres',
-        port: 5432,
-        database: 'postgres',
-        password: '1234',
+      host: 'localhost',
+      user: 'postgres',
+      port: 5432,
+      database: 'postgres',
+      password: 'Qwert@123',
     })
     try {
         await defaultDbClient.connect()
