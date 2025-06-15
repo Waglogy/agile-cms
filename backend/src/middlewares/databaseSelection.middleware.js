@@ -23,7 +23,6 @@ export function requireDatabaseSelection(req, res, next) {
     });
   }
 
-  console.log(payload);
 
   // Extract connection ID
   const connectionId = payload.connectionId; // backward compatibility

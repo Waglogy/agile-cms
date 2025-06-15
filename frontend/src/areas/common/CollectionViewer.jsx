@@ -5,10 +5,24 @@ import axios from 'axios'
 import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 
+const API_BASE = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+
+const api = axios.create({
+  baseURL: API_BASE,
+})
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers['auth-token'] = token
+  }
+  return config
+}, (error) => Promise.reject(error))
+
 /**
  * Renders one collection’s data: search + paginated table + CSV export.
  */
-const CollectionTable = ({ name, records }) => {
+const CollectionTable = ({ tableName, records }) => {
   const ITEMS_PER_PAGE = 5
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
@@ -36,52 +50,52 @@ const CollectionTable = ({ name, records }) => {
   }
 
   // Determines if a string is an image URL or base64
-const isImageUrl = (value) => {
-  if (!value) return false
-  if (typeof value === 'string') {
-    // Detect base64 or image URLs
-    return (
-      value.startsWith('data:image/') ||
-      /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
-    )
+  const isImageUrl = (value) => {
+    if (!value) return false
+    if (typeof value === 'string') {
+      // Detect base64 or image URLs
+      return (
+        value.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
+      )
+    }
+    if (typeof value === 'object' && value !== null) {
+      // If any key in the object is a valid image (recursive for thumb/large/medium)
+      return ['thumb', 'large', 'medium'].some(
+        (size) =>
+          value[size] &&
+          ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
+            (typeof value[size] === 'object' &&
+              (isImageUrl(value[size].base64) ||
+                isImageUrl(value[size].imagePath))))
+      )
+    }
+    return false
   }
-  if (typeof value === 'object' && value !== null) {
-    // If any key in the object is a valid image (recursive for thumb/large/medium)
-    return ['thumb', 'large', 'medium'].some(
-      (size) =>
-        value[size] &&
-        ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
-          (typeof value[size] === 'object' &&
-            (isImageUrl(value[size].base64) ||
-              isImageUrl(value[size].imagePath))))
-    )
-  }
-  return false
-}
-const getImageSrc = (value) => {
-  if (!value) return ''
-  if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
-  if (typeof value === 'object' && value !== null) {
-    // Prefer thumb, then large, then medium (customize order as you like)
-    const sizeOrder = ['thumb', 'large', 'medium']
-    for (let size of sizeOrder) {
-      if (value[size]) {
-        // Nested: can be base64 or imagePath string
-        if (typeof value[size] === 'string') return value[size]
-        if (value[size].base64) return value[size].base64
-        if (value[size].imagePath) return value[size].imagePath
+  const getImageSrc = (value) => {
+    if (!value) return ''
+    if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
+    if (typeof value === 'object' && value !== null) {
+      // Prefer thumb, then large, then medium (customize order as you like)
+      const sizeOrder = ['thumb', 'large', 'medium']
+      for (let size of sizeOrder) {
+        if (value[size]) {
+          // Nested: can be base64 or imagePath string
+          if (typeof value[size] === 'string') return value[size]
+          if (value[size].base64) return value[size].base64
+          if (value[size].imagePath) return value[size].imagePath
+        }
       }
     }
+    return ''
   }
-  return ''
-}
 
 
 
 
 
- // Get the actual src (to strip quotes or get src from object)
- 
+  // Get the actual src (to strip quotes or get src from object)
+
 
 
   // Filter rows based on searchTerm (case-insensitive)
@@ -99,7 +113,7 @@ const getImageSrc = (value) => {
   if (records.length === 0) {
     return (
       <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-2">{name}</h3>
+        <h3 className="text-lg font-semibold mb-2">{tableName}</h3>
         <p className="text-sm text-gray-500">
           No data available in this collection.
         </p>
@@ -144,7 +158,7 @@ const getImageSrc = (value) => {
     link.href = url
     // Filename: collection name plus timestamp
     const timestamp = new Date().toISOString().replace(/[:.-]/g, '')
-    link.setAttribute('download', `${name}_export_${timestamp}.csv`)
+    link.setAttribute('download', `${tableName}_export_${timestamp}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -153,7 +167,7 @@ const getImageSrc = (value) => {
 
   return (
     <div className="mb-8">
-      <h3 className="text-lg font-semibold mb-2">{name}</h3>
+      <h3 className="text-lg font-semibold mb-2">{tableName}</h3>
 
       {/* Search box + Export button */}
       <div className="flex items-center justify-between mb-4">
@@ -190,7 +204,7 @@ const getImageSrc = (value) => {
           <tbody>
             {paginated.map((row, idx) => (
               <tr
-                key={`${name}-${startIdx + idx}`}
+                key={`${tableName}-${startIdx + idx}`}
                 className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
               >
                 {columns.map((col) => (
@@ -227,10 +241,9 @@ const getImageSrc = (value) => {
             disabled={currentPage === 1}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === 1
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -244,10 +257,9 @@ const getImageSrc = (value) => {
                 onClick={() => setCurrentPage(pageNum)}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${
-                    pageNum === currentPage
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${pageNum === currentPage
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >
@@ -261,10 +273,9 @@ const getImageSrc = (value) => {
             disabled={currentPage === totalPages}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === totalPages
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -295,15 +306,19 @@ const CollectionViewer = () => {
         // 1) Get list of collection names
         const res = await getAllCollections()
         const list = res?.data?.data?.get_all_collections || []
-        const names = list.map((c) => c.collection_name)
+        const names = list
+          .map((c) => c.table_name || c.collection_name)
+          .filter((n) => typeof n === 'string' && n.trim() !== '')
         setCollections(names)
 
         // 2) Fetch data for each collection in parallel
         const allFetches = names.map(async (colName) => {
           try {
-            const r = await axios.get(
-              `http://localhost:8000/api/collection/data/${colName}?files=false`
+            const r = await api.get(
+              `/api/collection/data/${colName}?files=false`
             )
+            console.log(r);
+            
             return { name: colName, rows: r?.data?.data || [] }
           } catch (err) {
             console.error(`Failed to load data for ${colName}`, err)
@@ -327,7 +342,8 @@ const CollectionViewer = () => {
     }
 
     fetchAll()
-  }, [showAppMessage])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   if (loading) {
     return (
@@ -387,7 +403,7 @@ const CollectionViewer = () => {
           {paginatedCollections.map((colName) => (
             <CollectionTable
               key={colName}
-              name={colName}
+              tableName={colName}
               records={recordsMap[colName] || []}
             />
           ))}
@@ -400,10 +416,9 @@ const CollectionViewer = () => {
                 disabled={currentPage === 1}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${
-                    currentPage === 1
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${currentPage === 1
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >
@@ -417,10 +432,9 @@ const CollectionViewer = () => {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`
                       px-3 py-1 rounded-md text-sm
-                      ${
-                        pageNum === currentPage
-                          ? 'bg-blue-500 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-100'
+                      ${pageNum === currentPage
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-100'
                       }
                     `}
                   >
@@ -436,10 +450,9 @@ const CollectionViewer = () => {
                 disabled={currentPage === totalPages}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${
-                    currentPage === totalPages
-                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                      : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${currentPage === totalPages
+                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >

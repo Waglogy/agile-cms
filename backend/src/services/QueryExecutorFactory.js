@@ -93,7 +93,7 @@ class QueryExecutor {
 
   async registerSuperAdmin(first_name, last_name, email, password) {
     const result = await this.client.query(
-      'SELECT register_super_admin($1, $2, $3, $4)',
+      'SELECT agile_cms.register_super_admin($1, $2, $3, $4)',
       [first_name, last_name, email, password]
     )
 
@@ -166,7 +166,7 @@ class QueryExecutor {
   }
 
   async registerUser(email, password, role) {
-    const result = await this.client.query('SELECT register_user($1, $2, $3)', [
+    const result = await this.client.query('SELECT agile_cms.register_user($1, $2, $3)', [
       email,
       password,
       role,
@@ -176,24 +176,24 @@ class QueryExecutor {
 
   async assignRoleToUser(email, role) {
     const result = await this.client.query(
-      'SELECT assign_role_to_user($1, $2)',
+      'SELECT agile_cms.assign_role_to_user($1, $2)',
       [email, role]
     )
     return result.rows[0].assign_role_to_user
   }
 
   async getUserRole(email) {
-    const result = await this.client.query('SELECT get_user_role($1)', [email])
+    const result = await this.client.query('SELECT agile_cms.get_user_role($1)', [email])
     return result.rows[0].get_user_role
   }
 
   async getAllUsers() {
-    const result = await this.client.query(`SELECT * FROM get_all_users()`)
+    const result = await this.client.query(`SELECT * FROM agile_cms.get_all_users()`)
     return result.rows
   }
 
   async authenticateUser(email, password) {
-    const result = await this.client.query('SELECT authenticate_user($1, $2)', [
+    const result = await this.client.query('SELECT agile_cms.authenticate_user($1, $2)', [
       email,
       password,
     ])
@@ -201,7 +201,7 @@ class QueryExecutor {
   }
 
   async findUser(email) {
-    const result = await this.client.query('SELECT find_user($1)', [email])
+    const result = await this.client.query('SELECT agile_cms.find_user($1)', [email])
     return result.rows[0].find_user
   }
 
