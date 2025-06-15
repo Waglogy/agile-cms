@@ -169,11 +169,12 @@ BEGIN
 
   -- 2) Create the table with an auto-incrementing id PK + your columns
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
-       id     SERIAL PRIMARY KEY
+    'CREATE TABLE IF NOT EXISTS agile_cms.utbl_%I (
+       %I SERIAL PRIMARY KEY
        %s
      )',
     tbl_name,
+    tbl_name || '_id',
     CASE
       WHEN col_defs <> '' THEN ', ' || col_defs
       ELSE ''
@@ -304,11 +305,12 @@ BEGIN
 
   -- 4) Create the dynamic table
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
-       id SERIAL PRIMARY KEY,
+    'CREATE TABLE IF NOT EXISTS agile_cms.utbl_%I (
+       %I SERIAL PRIMARY KEY,
        %s
      )',
     tbl_name,
+    tbl_name || '_id',
     col_defs
   );
 
