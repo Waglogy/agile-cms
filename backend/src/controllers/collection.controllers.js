@@ -372,6 +372,13 @@ export async function insertData(req, res, next) {
       { ...body }
     )
 
+    const result = await req.queryExecutor.saveSnapshot(
+      collectionName,
+      newRecordId
+    )
+
+    console.log(result)
+
     return res.json({
       status: true,
       message: 'Data inserted successfully',

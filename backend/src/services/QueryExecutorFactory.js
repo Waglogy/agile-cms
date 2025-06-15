@@ -402,6 +402,43 @@ class QueryExecutor {
   `)
     return result.rows
   }
+
+  /**
+   * Save a versioned snapshot of a single record.
+   *
+   * @param {import('pg').Client|import('pg').PoolClient} client  – Postgres client
+   * @param {string} collectionName                            – Name of the table (without schema)
+   * @param {number} recordId                                  – Primary key of the row
+   * @returns {Promise<boolean>}                              – true if a snapshot was saved
+   */
+  async saveSnapshot(collectionName, recordId) {
+    // 1) Grab the current row as JSONB
+    const { rows } = await this.client.query(
+      // you can prefix schema if needed: agile_cms.${collectionName}
+      `SELECT to_jsonb(t) AS data
+       FROM agile_cms.${collectionName} t
+      WHERE id = $1`,
+      [recordId]
+    )
+    const snapshot = rows[0]?.data
+    if (!snapshot) {
+      // nothing to snapshot
+      return false
+    }
+
+    // 2) Determine which version number to save
+    //    If the row already had a version property, use that,
+    //    otherwise assume this is version 1.
+    const version = typeof snapshot.version === 'number' ? snapshot.version : 1
+
+    // 3) Call the PL/pgSQL function to persist the snapshot
+    await this.client.query(
+      `SELECT agile_cms.save_content_version($1, $2, $3, $4)`,
+      [collectionName, recordId, snapshot, version]
+    )
+
+    return true
+  }
 }
 
 // Export a single instance
