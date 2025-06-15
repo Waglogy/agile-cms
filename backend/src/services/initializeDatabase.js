@@ -4,16 +4,15 @@ import envConfig from '../config/env.config.js'
 
 const { Client, Pool } = pg
 
-// Connect to PostgreSQL (without specifying database)
-const adminClient = new Client({
-  host: envConfig.PG_HOST,
-  user: envConfig.PG_USER,
-  password: `${envConfig.PG_PASSWORD}`,
-  port: envConfig.PG_PORT,
-  database: 'postgres', // Connect to the default database first
-})
 
 async function initializeDatabase(db_name) {
+  const adminClient = new Client({
+    host: envConfig.PG_HOST,
+    user: envConfig.PG_USER,
+    password: `${envConfig.PG_PASSWORD}`,
+    port: envConfig.PG_PORT,
+    database: 'postgres',
+  });
   const client = new Pool({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
