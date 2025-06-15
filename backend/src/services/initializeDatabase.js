@@ -8,7 +8,7 @@ const { Client, Pool } = pg
 const adminClient = new Client({
   host: envConfig.PG_HOST,
   user: envConfig.PG_USER,
-  password: envConfig.PG_PASSWORD,
+  password: `${envConfig.PG_PASSWORD}`,
   port: envConfig.PG_PORT,
   database: 'postgres', // Connect to the default database first
 })
@@ -17,7 +17,7 @@ async function initializeDatabase(db_name) {
   const client = new Pool({
     host: envConfig.PG_HOST,
     user: envConfig.PG_USER,
-    password: envConfig.PG_PASSWORD,
+    password: `${envConfig.PG_PASSWORD}`,
     port: envConfig.PG_PORT,
     database: String(db_name).toLowerCase(),
   })
@@ -170,7 +170,7 @@ BEGIN
 
   -- 2) Create the table with an auto-incrementing id PK + your columns
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS %I (
+    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
        id     SERIAL PRIMARY KEY
        %s
      )',
@@ -189,7 +189,7 @@ BEGIN
     is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
 
     EXECUTE format(
-      'COMMENT ON COLUMN %I.%I IS %L',
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
       tbl_name,
       col_name,
       format('is_multiple=%s', is_mult)
@@ -305,7 +305,7 @@ BEGIN
 
   -- 4) Create the dynamic table
   EXECUTE format(
-    'CREATE TABLE IF NOT EXISTS %I (
+    'CREATE TABLE IF NOT EXISTS agile_cms.%I (
        id SERIAL PRIMARY KEY,
        %s
      )',
@@ -319,7 +319,7 @@ BEGIN
   LOOP
     is_mult := COALESCE((column_def->>'is_multiple')::BOOLEAN, FALSE);
     EXECUTE format(
-      'COMMENT ON COLUMN %I.%I IS %L',
+      'COMMENT ON COLUMN agile_cms.%I.%I IS %L',
       tbl_name,
       col_name,
       format('is_multiple=%s', is_mult)
@@ -383,7 +383,7 @@ BEGIN
 
   -- 4) Insert and return the full row
   EXECUTE format(
-    'INSERT INTO %I AS t (%s) VALUES (%s)
+    'INSERT INTO agile_cms.%I AS t (%s) VALUES (%s)
        RETURNING to_jsonb(t)',
     p_table_name,
     v_cols,
@@ -471,7 +471,7 @@ $$ LANGUAGE plpgsql;
           END LOOP;
           update_pairs := TRIM(BOTH ', ' FROM update_pairs);
           IF update_pairs = '' THEN RETURN FALSE; END IF;
-          EXECUTE format('UPDATE %I SET %s WHERE id = %s;', table_name, update_pairs, id);
+          EXECUTE format('UPDATE agile_cms.%I SET %s WHERE id = %s;', table_name, update_pairs, id);
           GET DIAGNOSTICS row_count = ROW_COUNT;
           RETURN row_count > 0;
       EXCEPTION WHEN OTHERS THEN RETURN FALSE;
