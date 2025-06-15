@@ -2,6 +2,20 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useNotification } from '../../context/NotificationContext'
+import ReactQuill from 'react-quill'
+import 'react-quill/dist/quill.snow.css'
+
+// Modify the EXCLUDED_TABLES constant
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'utbl_image_galleries',
+]
 
 const CollectionEditor = () => {
   const { showAppMessage } = useNotification()
@@ -14,6 +28,7 @@ const CollectionEditor = () => {
   const [deleteConfirm, setDeleteConfirm] = useState({ show: false, id: null })
   const [searchTerm, setSearchTerm] = useState('')
   const [tableMetadata, setTableMetadata] = useState({}) // Store table metadata
+  const [richTextFields, setRichTextFields] = useState({}) // Track which fields use rich text
 
   // System fields to exclude from display
   const systemFields = [
@@ -22,12 +37,27 @@ const CollectionEditor = () => {
     'published_at',
     'version',
     'status',
+    'images',
+    ' image_galleries',
   ]
 
   // Filter tables based on search term
   const filteredTables = tables.filter((table) =>
     table.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Add this utility function at the top level of the component
+  const cleanDataValue = (value) => {
+    if (typeof value !== 'string') return value
+
+    // Remove extra quotes, PostgreSQL Versioning text, and clean up the string
+    return value
+      .replace(/^"|"$/g, '') // Remove surrounding quotes
+      .replace(/PostgreSQL Versioning/g, '') // Remove PostgreSQL Versioning text
+      .replace(/\t/g, '') // Remove tab characters
+      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+      .trim() // Remove leading/trailing whitespace
+  }
 
   // Delete entire collection/table
   const deleteCollection = async () => {
@@ -73,7 +103,7 @@ const CollectionEditor = () => {
     }
   }
 
-  // Fetch all table names and their metadata
+  // Modify the useEffect that fetches tables to filter out excluded tables
   useEffect(() => {
     const fetchTables = async () => {
       try {
@@ -81,18 +111,26 @@ const CollectionEditor = () => {
         const res = await axios.get('http://localhost:8000/api/collection')
 
         if (res.data?.data?.get_all_collections) {
-          const tablesData = res.data.data.get_all_collections.map(
-            (collection) => collection.collection_name
-          )
+          const tablesData = res.data.data.get_all_collections
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
+            )
+            .map((collection) => collection.collection_name)
           setTables(tablesData)
 
-          // Store metadata for each table
+          // Store metadata for each table (excluding system tables)
           const metadata = {}
-          res.data.data.get_all_collections.forEach((collection) => {
-            metadata[collection.collection_name] = collection.columns.filter(
-              (col) => !systemFields.includes(col.column_name)
+          res.data.data.get_all_collections
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
             )
-          })
+            .forEach((collection) => {
+              metadata[collection.collection_name] = collection.columns.filter(
+                (col) => !systemFields.includes(col.column_name)
+              )
+            })
           setTableMetadata(metadata)
         }
       } catch (err) {
@@ -114,7 +152,15 @@ const CollectionEditor = () => {
         const res = await axios.get(
           `http://localhost:8000/api/collection/data/${selectedTable}?files=false`
         )
-        setRecords(res.data.data || [])
+        // Clean the data when it's received
+        const cleanedRecords = (res.data.data || []).map((record) => {
+          const cleanedRecord = {}
+          Object.keys(record).forEach((key) => {
+            cleanedRecord[key] = cleanDataValue(record[key])
+          })
+          return cleanedRecord
+        })
+        setRecords(cleanedRecords)
       } catch (err) {
         console.error(err)
         showAppMessage(`Failed to fetch data for ${selectedTable}`, 'error')
@@ -125,9 +171,59 @@ const CollectionEditor = () => {
     fetchData()
   }, [selectedTable, showAppMessage])
 
+  // Add Quill modules configuration
+  const quillModules = {
+    toolbar: [
+      [{ header: [1, 2, 3, 4, 5, 6, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ list: 'ordered' }, { list: 'bullet' }],
+      [{ color: [] }, { background: [] }],
+      ['link', 'image'],
+      ['clean'],
+      [{ align: [] }],
+      [{ indent: '-1' }, { indent: '+1' }],
+      ['blockquote', 'code-block'],
+    ],
+  }
+
+  const quillFormats = [
+    'header',
+    'bold',
+    'italic',
+    'underline',
+    'strike',
+    'list',
+    'bullet',
+    'link',
+    'image',
+    'color',
+    'background',
+    'align',
+    'indent',
+    'blockquote',
+    'code-block',
+  ]
+
+  // Add toggle function for rich text editor
+  const toggleRichText = (fieldName) => {
+    setRichTextFields((prev) => ({
+      ...prev,
+      [fieldName]: !prev[fieldName],
+    }))
+  }
+
+  // Modify startEdit to initialize rich text state
   const startEdit = (row) => {
     setEditingId(row.id)
     setEditData({ ...row })
+    // Initialize rich text fields based on data type
+    const richTextState = {}
+    Object.keys(row).forEach((key) => {
+      if (typeof row[key] === 'string' && row[key].includes('<p>')) {
+        richTextState[key] = true
+      }
+    })
+    setRichTextFields(richTextState)
   }
 
   const cancelEdit = () => {
@@ -146,7 +242,7 @@ const CollectionEditor = () => {
 
     Object.keys(updates).forEach((key) => {
       if (updates[key] !== original[key]) {
-        updateData[key] = updates[key]
+        updateData[key] = cleanDataValue(updates[key])
       }
     })
 
@@ -165,7 +261,7 @@ const CollectionEditor = () => {
 
       showAppMessage('Row updated successfully.', 'success')
 
-      // Update local state
+      // Update local state with cleaned data
       setRecords((prev) =>
         prev.map((r) => (r.id === id ? { ...r, ...updateData } : r))
       )
@@ -323,16 +419,53 @@ const CollectionEditor = () => {
                           .map((col) => (
                             <td key={col} className="px-4 py-2">
                               {isEditing ? (
-                                <input
-                                  type="text"
-                                  value={editData[col] ?? ''}
-                                  onChange={(e) =>
-                                    handleChange(col, e.target.value)
-                                  }
-                                  className="w-full border rounded px-2 py-1"
-                                />
+                                <div className="space-y-2">
+                                  {typeof row[col] === 'string' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleRichText(col)}
+                                      className="text-sm text-blue-600 hover:text-blue-800 mb-2"
+                                    >
+                                      {richTextFields[col]
+                                        ? 'Switch to Plain Text'
+                                        : 'Use Rich Text Editor'}
+                                    </button>
+                                  )}
+                                  {richTextFields[col] ? (
+                                    <div className="border rounded-md">
+                                      <ReactQuill
+                                        theme="snow"
+                                        value={editData[col] || ''}
+                                        onChange={(content) =>
+                                          handleChange(col, content)
+                                        }
+                                        modules={quillModules}
+                                        formats={quillFormats}
+                                        className="h-48 mb-12"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={editData[col] ?? ''}
+                                      onChange={(e) =>
+                                        handleChange(col, e.target.value)
+                                      }
+                                      className="w-full border rounded px-2 py-1"
+                                    />
+                                  )}
+                                </div>
                               ) : (
-                                String(row[col])
+                                <div
+                                  className="prose max-w-none"
+                                  dangerouslySetInnerHTML={{
+                                    __html:
+                                      typeof row[col] === 'string' &&
+                                      row[col].includes('<p>')
+                                        ? row[col]
+                                        : String(row[col]),
+                                  }}
+                                />
                               )}
                             </td>
                           ))}

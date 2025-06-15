@@ -1,72 +1,6 @@
 import React from 'react'
-import {
-  LayoutDashboard,
-  PlusSquare,
-  Eye,
-  User,
-  BookOpen,
-  LogOut,
-} from 'lucide-react'
-
-// --- Sidebar component ---
-const Sidebar = ({ current }) => {
-  const navItems = [
-    {
-      to: '/content-manager/dashboard',
-      label: 'Dashboard',
-      icon: <LayoutDashboard size={24} />,
-    },
-    {
-      to: 'content-manager/add-data',
-      label: 'Add Data',
-      icon: <PlusSquare size={24} />,
-    },
-    {
-      to: '/content-manager/collection-view',
-      label: 'Show Tables',
-      icon: <Eye size={24} />,
-    },
-    {
-      to: '/content-manager/profile',
-      label: 'Profile',
-      icon: <User size={24} />,
-    },
-  ]
-
-  return (
-    <aside className="w-64 h-screen sticky top-0 bg-[#e75024] flex flex-col p-4 border-r border-[#b90325]">
-      <div className="text-[#fefefe] text-2xl font-bold mb-10 px-2 tracking-tight">
-        Agile CMS
-      </div>
-      <nav className="flex flex-col gap-1">
-        {navItems.map(({ to, label, icon }) => {
-          const isActive = current === to
-          return (
-            <a
-              key={to}
-              href={to}
-              className={`flex items-center gap-3 px-3 py-2 rounded-md font-medium transition-all duration-150 ${
-                isActive
-                  ? 'bg-[#facc15] text-[#1f1f1f]'
-                  : 'text-[#fefefe] hover:bg-[#b90325] hover:text-white'
-              }`}
-            >
-              {icon}
-              <span>{label}</span>
-            </a>
-          )
-        })}
-      </nav>
-      <div className="flex-grow"></div>
-      <a
-        href="/logout"
-        className="flex items-center gap-2 text-[#fefefe] px-3 py-2 rounded-md font-medium hover:bg-[#b90325] hover:text-white transition-all"
-      >
-        <LogOut size={20} /> Logout
-      </a>
-    </aside>
-  )
-}
+import { BookOpen, PlusSquare, Eye } from 'lucide-react'
+import Sidebar from '../common/Sidebar'
 
 // --- Dashboard content ---
 const ContentManagerDashboard = () => {
@@ -86,7 +20,9 @@ const ContentManagerDashboard = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      <Sidebar current="/content-manager/dashboard" />
+      <div className="hidden md:flex">
+        <Sidebar />
+      </div>
 
       <main className="flex-1 p-8">
         <div className="mb-6">
@@ -94,7 +30,7 @@ const ContentManagerDashboard = () => {
             Content Manager Dashboard
           </h1>
           <p className="text-gray-600">
-            Welcome! Here’s your snapshot for the day—recent activity, quick
+            Welcome! Here's your snapshot for the day—recent activity, quick
             stats, and everything you need to manage your content smoothly.
           </p>
         </div>

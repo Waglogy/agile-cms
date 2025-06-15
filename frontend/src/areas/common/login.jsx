@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRightCircle, X } from 'lucide-react'
 import logo from '../../assets/bbLogo.png'
+import { setUserRole } from '../../utils/roleManager'
 
 const WelcomeLogin = () => {
   const [showLogin, setShowLogin] = useState(false)
@@ -55,8 +56,9 @@ const LoginForm = ({ onClose }) => {
 
   const onSubmit = (e) => {
     e.preventDefault()
-    // Assuming authentication is successful:
-    // Redirect both roles to /select-db, passing the role in location.state
+    // Store the role in localStorage before navigation
+    setUserRole(form.role)
+    // Navigate to select-db
     navigate('/select-db', { state: { role: form.role } })
   }
 
@@ -155,7 +157,7 @@ const LoginForm = ({ onClose }) => {
 
         <div className="text-center">
           <p className="text-sm text-gray-600">
-            Don’t have an account?{' '}
+            Don't have an account?{' '}
             <a href="/signup" className="text-[#e75024] hover:underline">
               Sign up
             </a>
