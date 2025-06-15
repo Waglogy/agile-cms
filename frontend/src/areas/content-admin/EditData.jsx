@@ -3,6 +3,37 @@ import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { useNotification } from '../../context/NotificationContext'
 
+const API_BASE =
+  import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+
+// Create axios instance with auth token interceptor
+const api = axios.create({
+  baseURL: API_BASE,
+})
+
+// Add auth token to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers['auth-token'] = token
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'image_galleries',
+]
+
 const CollectionEditor = () => {
   const { showAppMessage } = useNotification()
   const [tables, setTables] = useState([])
@@ -42,12 +73,9 @@ const CollectionEditor = () => {
     }
 
     try {
-      const res = await axios.post(
-        'http://localhost:8000/api/collection/delete-collection',
-        {
-          collectionName: selectedTable,
-        }
-      )
+      const res = await api.post('/api/collection/delete-collection', {
+        collectionName: selectedTable,
+      })
 
       if (res.data.status) {
         showAppMessage('Table deleted successfully.', 'success')
@@ -55,13 +83,11 @@ const CollectionEditor = () => {
         setSelectedTable('')
         setRecords([])
         // Refresh tables list
-        const tablesRes = await axios.get(
-          'http://localhost:8000/api/collection'
-        )
+        const tablesRes = await api.get('/api/collection')
         if (tablesRes.data?.data?.get_all_collections) {
-          const tablesData = tablesRes.data.data.get_all_collections.map(
-            (collection) => collection.collection_name
-          )
+          const tablesData = tablesRes.data.data.get_all_collections
+            .map((collection) => collection.collection_name)
+            .filter((name) => !EXCLUDED_TABLES.includes(name))
           setTables(tablesData)
         }
       } else {
@@ -78,21 +104,26 @@ const CollectionEditor = () => {
     const fetchTables = async () => {
       try {
         console.log('Starting to fetch tables...')
-        const res = await axios.get('http://localhost:8000/api/collection')
+        const res = await api.get('/api/collection')
 
         if (res.data?.data?.get_all_collections) {
-          const tablesData = res.data.data.get_all_collections.map(
-            (collection) => collection.collection_name
-          )
+          const tablesData = res.data.data.get_all_collections
+            .map((collection) => collection.collection_name)
+            .filter((name) => !EXCLUDED_TABLES.includes(name))
           setTables(tablesData)
 
           // Store metadata for each table
           const metadata = {}
-          res.data.data.get_all_collections.forEach((collection) => {
-            metadata[collection.collection_name] = collection.columns.filter(
-              (col) => !systemFields.includes(col.column_name)
+          res.data.data.get_all_collections
+            .filter(
+              (collection) =>
+                !EXCLUDED_TABLES.includes(collection.collection_name)
             )
-          })
+            .forEach((collection) => {
+              metadata[collection.collection_name] = collection.columns.filter(
+                (col) => !systemFields.includes(col.column_name)
+              )
+            })
           setTableMetadata(metadata)
         }
       } catch (err) {
@@ -111,8 +142,8 @@ const CollectionEditor = () => {
     const fetchData = async () => {
       setLoading(true)
       try {
-        const res = await axios.get(
-          `http://localhost:8000/api/collection/data/${selectedTable}?files=false`
+        const res = await api.get(
+          `/api/collection/data/${selectedTable}?files=false`
         )
         setRecords(res.data.data || [])
       } catch (err) {
@@ -157,7 +188,7 @@ const CollectionEditor = () => {
     }
 
     try {
-      await axios.post('http://localhost:8000/api/collection/update', {
+      await api.post('/api/collection/update', {
         tableName: selectedTable,
         id: String(id),
         updateData,
@@ -182,13 +213,10 @@ const CollectionEditor = () => {
     if (!selectedTable || !id) return
 
     try {
-      const res = await axios.post(
-        'http://localhost:8000/api/collection/delete',
-        {
-          tableName: selectedTable,
-          id: String(id),
-        }
-      )
+      const res = await api.post('/api/collection/delete', {
+        tableName: selectedTable,
+        id: String(id),
+      })
 
       if (res.data.status) {
         showAppMessage('Row deleted successfully.', 'success')

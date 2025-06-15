@@ -17,6 +17,17 @@ const SUPPORTED_TYPES = [
   'JSONB',
 ]
 
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'image_galleries',
+]
+
 const TableManager = () => {
   const [tables, setTables] = useState([])
   const [selectedTable, setSelectedTable] = useState(null)
@@ -33,18 +44,20 @@ const TableManager = () => {
         return
       }
 
-      const mapped = collectionList.map((table) => ({
-        name: table.collection_name,
-        fields: table.columns.map((col) => ({
-          name: col.column_name,
-          originalName: col.column_name,
-          type: SUPPORTED_TYPES.includes(col.data_type.toUpperCase())
-            ? col.data_type.toUpperCase()
-            : '',
-          comment: '',
-          action: 'type',
-        })),
-      }))
+      const mapped = collectionList
+        .filter((table) => !EXCLUDED_TABLES.includes(table.collection_name))
+        .map((table) => ({
+          name: table.collection_name,
+          fields: table.columns.map((col) => ({
+            name: col.column_name,
+            originalName: col.column_name,
+            type: SUPPORTED_TYPES.includes(col.data_type.toUpperCase())
+              ? col.data_type.toUpperCase()
+              : '',
+            comment: '',
+            action: 'type',
+          })),
+        }))
 
       setTables(mapped)
     } catch (err) {
@@ -56,8 +69,6 @@ const TableManager = () => {
   useEffect(() => {
     fetchTables()
   }, [])
-
-
 
   const handleEdit = (table) => {
     setSelectedTable(table)

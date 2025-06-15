@@ -5,22 +5,36 @@ import axios from 'axios'
 import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
 
-const API_BASE = import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+const API_BASE =
+  import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+]
 
 const api = axios.create({
   baseURL: API_BASE,
 })
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    config.headers['auth-token'] = token
-  }
-  return config
-}, (error) => Promise.reject(error))
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers['auth-token'] = token
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
 /**
- * Renders one collection’s data: search + paginated table + CSV export.
+ * Renders one collection's data: search + paginated table + CSV export.
  */
 const CollectionTable = ({ tableName, records }) => {
   const ITEMS_PER_PAGE = 5
@@ -31,7 +45,7 @@ const CollectionTable = ({ tableName, records }) => {
   const cleanValue = (value) => {
     if (value === null) return '—'
     if (typeof value === 'string') {
-      // ISO date check (contains “T”)
+      // ISO date check (contains "T")
       if (value.includes('T')) {
         const date = new Date(value)
         return date.toLocaleString()
@@ -90,13 +104,7 @@ const CollectionTable = ({ tableName, records }) => {
     return ''
   }
 
-
-
-
-
   // Get the actual src (to strip quotes or get src from object)
-
-
 
   // Filter rows based on searchTerm (case-insensitive)
   const filtered = records.filter((record) =>
@@ -241,9 +249,10 @@ const CollectionTable = ({ tableName, records }) => {
             disabled={currentPage === 1}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${currentPage === 1
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -257,9 +266,10 @@ const CollectionTable = ({ tableName, records }) => {
                 onClick={() => setCurrentPage(pageNum)}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${pageNum === currentPage
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${
+                    pageNum === currentPage
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >
@@ -273,9 +283,10 @@ const CollectionTable = ({ tableName, records }) => {
             disabled={currentPage === totalPages}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${currentPage === totalPages
-                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -309,6 +320,7 @@ const CollectionViewer = () => {
         const names = list
           .map((c) => c.table_name || c.collection_name)
           .filter((n) => typeof n === 'string' && n.trim() !== '')
+          .filter((n) => !EXCLUDED_TABLES.includes(n)) // Filter out excluded tables
         setCollections(names)
 
         // 2) Fetch data for each collection in parallel
@@ -317,8 +329,8 @@ const CollectionViewer = () => {
             const r = await api.get(
               `/api/collection/data/${colName}?files=false`
             )
-            console.log(r);
-            
+            console.log(r)
+
             return { name: colName, rows: r?.data?.data || [] }
           } catch (err) {
             console.error(`Failed to load data for ${colName}`, err)
@@ -416,9 +428,10 @@ const CollectionViewer = () => {
                 disabled={currentPage === 1}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${currentPage === 1
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${
+                    currentPage === 1
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >
@@ -432,9 +445,10 @@ const CollectionViewer = () => {
                     onClick={() => setCurrentPage(pageNum)}
                     className={`
                       px-3 py-1 rounded-md text-sm
-                      ${pageNum === currentPage
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-100'
+                      ${
+                        pageNum === currentPage
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-100'
                       }
                     `}
                   >
@@ -450,9 +464,10 @@ const CollectionViewer = () => {
                 disabled={currentPage === totalPages}
                 className={`
                   px-3 py-1 rounded-md text-sm
-                  ${currentPage === totalPages
-                    ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ${
+                    currentPage === totalPages
+                      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                      : 'bg-white text-gray-700 hover:bg-gray-100'
                   }
                 `}
               >

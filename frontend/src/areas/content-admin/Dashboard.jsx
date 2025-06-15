@@ -4,6 +4,37 @@ import { useNavigate } from 'react-router-dom'
 import DashboardLayout from '../common/DashboardLayout'
 import axios from 'axios'
 
+const API_BASE =
+  import.meta.env.REACT_APP_API_BASE_URL || 'http://localhost:8000'
+
+// Create axios instance with auth token interceptor
+const api = axios.create({
+  baseURL: API_BASE,
+})
+
+// Add auth token to all requests
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers['auth-token'] = token
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
+
+const EXCLUDED_TABLES = [
+  'content_versions',
+  'logs',
+  'roles',
+  'settings',
+  'user_roles',
+  'users',
+  'images',
+  'image_galleries',
+]
+
 const StatCard = ({ icon: Icon, title, value }) => (
   <div className="flex items-center p-4 bg-white rounded-xl shadow-sm border w-full sm:w-1/2 lg:w-1/4">
     <div className="p-2 rounded-full bg-[#facc15] text-[#1f1f1f] mr-4">
@@ -27,16 +58,15 @@ const AdminDashboard = () => {
       setLoading(true)
       try {
         // Fetch all collections (tables)
-        const resCollections = await axios.get(
-          'http://localhost:8000/api/collection'
-        )
-        const collectionsList =
+        const resCollections = await api.get('/api/collection')
+        const collectionsList = (
           resCollections?.data?.data?.get_all_collections || []
+        ).filter(
+          (collection) => !EXCLUDED_TABLES.includes(collection.collection_name)
+        )
 
         // Fetch logs
-        const resLogs = await axios.get(
-          'http://localhost:8000/api/collection/logs/system-logs'
-        )
+        const resLogs = await api.get('/api/collection/logs/system-logs')
         const logsList = resLogs?.data?.data || []
 
         setCollections(collectionsList)
