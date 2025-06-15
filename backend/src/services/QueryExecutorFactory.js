@@ -30,9 +30,12 @@ class QueryExecutor {
 
   async updateData(tableName, id, updateData) {
     const result = await this.client.query(
-      'SELECT agile_cms.update_content_type_data($1, $2, $3)',
+      'SELECT * from agile_cms.update_content_type_data($1, $2, $3)',
       [tableName, id, updateData]
     )
+
+    console.log(result)
+
     await this.insertLogEntry('update_row', 'system', tableName, id, {
       updateData,
     })
@@ -40,14 +43,14 @@ class QueryExecutor {
   }
 
   async rollbackRow(tableName, id, version) {
-    const result = await client.query(
+    const result = await this.client.query(
       'SELECT agile_cms.rollback_content_type_row($1, $2, $3)',
       [tableName, id, version]
     )
     return result.rows[0].rollback_content_type_row === true
   }
   async getPublishedData(tableName, status = 'published') {
-    const result = await client.query(
+    const result = await this.client.query(
       'SELECT agile_cms.get_collection_by_status($1, $2)',
       [tableName, status]
     )
@@ -78,7 +81,7 @@ class QueryExecutor {
   }
   async archiveRow(tableName, id) {
     const updateQuery = `UPDATE ${tableName} SET status = 'archived' WHERE id = $1`
-    const res = await client.query(updateQuery, [id])
+    const res = await this.client.query(updateQuery, [id])
     return res.rowCount > 0
   }
 

@@ -194,7 +194,7 @@ export async function getCollectionData(req, res, next) {
 }
 
 // Insert new data into a collection
-export async function insertData(req, res, next) {
+/* export async function insertData(req, res, next) {
   try {
     // 1) Required params
     const { collectionName, ...body } = req.body
@@ -231,7 +231,10 @@ export async function insertData(req, res, next) {
       }
     }
 
-    const insertResult = await queryExecutor.insertData(collectionName, payload)
+    const insertResult = await req.queryExecutor.insertData(
+      collectionName, 
+      payload
+    )
     if (!insertResult) {
       return res.status(500).json({
         status: false,
@@ -286,7 +289,100 @@ export async function insertData(req, res, next) {
     console.error(error)
     return next(new AppError(500, 'Internal Server Error', error.message))
   }
+} */
+export async function insertData(req, res, next) {
+  try {
+    // 1) Required params
+    const { collectionName, ...body } = req.body
+    if (!collectionName) {
+      return next(
+        new AppError(400, 'Data insert failed', 'Please enter collection name')
+      )
+    }
+
+    // 2) Ensure the collection exists
+    const collection = await req.queryExecutor.getCollectionByName(
+      String(collectionName)
+    )
+    if (!collection) {
+      return next(
+        new AppError(
+          404,
+          'Collection not found',
+          `No collection named ${collectionName}`
+        )
+      )
+    }
+
+    // 3) Insert the main row (all non-file fields)
+    const payload = { ...body }
+    const insertResult = await req.queryExecutor.insertData(
+      collectionName,
+      payload
+    )
+    if (!insertResult) {
+      return res.status(500).json({
+        status: false,
+        message: 'Data insertion failed',
+      })
+    }
+
+    console.log('Insert Result....', insertResult)
+
+    const newRecordId = insertResult.id
+
+    // 4) group by field name
+    const filesArray = Array.isArray(req.files) ? req.files : []
+    const fileMap = filesArray.reduce((map, file) => {
+      map[file.fieldname] = map[file.fieldname] || []
+      map[file.fieldname].push(file)
+      return map
+    }, {})
+
+    // 5) for each dynamic file‐field:
+    for (const [fieldName, files] of Object.entries(fileMap)) {
+      // --- A) create a single metadata row for this field
+      const { image_id } = await req.queryExecutor.createImage(
+        `Auto for ${fieldName}`,
+        'Uploaded by user'
+      )
+
+      // --- B) upload & gallery all files under that one image_id
+      const uploadContainers = await imageUploader(files)
+      for (const container of uploadContainers) {
+        await req.queryExecutor.createImageGallery(image_id, container)
+      }
+
+      console.log('Field Name', fieldName)
+
+      console.log('Image Id', image_id)
+
+      // --- C) point your test_table FK at that one image_id
+      await req.queryExecutor.updateData(collectionName, newRecordId, {
+        [fieldName]: image_id,
+      })
+    }
+
+    // 6) log, 7) respond  (unchanged)
+    await req.queryExecutor.insertLogEntry(
+      'insert_row',
+      req.user?.email || 'system',
+      collectionName,
+      newRecordId,
+      { ...body }
+    )
+
+    return res.json({
+      status: true,
+      message: 'Data inserted successfully',
+      data: { id: newRecordId, ...body },
+    })
+  } catch (error) {
+    console.error(error)
+    return next(new AppError(500, 'Internal Server Error', error.message))
+  }
 }
+
 export async function rollbackData(req, res, next) {
   const { tableName, id, version } = req.body
   if (!tableName || !id || !version) {
@@ -294,8 +390,8 @@ export async function rollbackData(req, res, next) {
   }
 
   try {
-    const success = await queryExecutor.rollbackRow(tableName, id, version)
-    await queryExecutor.insertLogEntry(
+    const success = await req.queryExecutor.rollbackRow(tableName, id, version)
+    await req.queryExecutor.insertLogEntry(
       'rollback_row',
       req.user?.email || 'system',
       tableName,
@@ -316,7 +412,7 @@ export async function getArchivedContent(req, res, next) {
   if (!tableName) return next(new AppError(400, 'Table name is required'))
 
   try {
-    const data = await queryExecutor.getPublishedData(tableName, 'archived') // reuse the existing function
+    const data = await req.queryExecutor.getPublishedData(tableName, 'archived') // reuse the existing function
     return res.json({
       status: true,
       message: 'Archived content retrieved',
@@ -335,8 +431,8 @@ export async function archiveData(req, res, next) {
   }
 
   try {
-    const success = await queryExecutor.archiveRow(tableName, id)
-    await queryExecutor.insertLogEntry(
+    const success = await req.queryExecutor.archiveRow(tableName, id)
+    await req.queryExecutor.insertLogEntry(
       'archive_row',
       req.user?.email || 'system',
       tableName,
