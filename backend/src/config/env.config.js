@@ -4,8 +4,8 @@ import dotenv from 'dotenv'
 
 dotenv.config({
   debug: true,
-  path: `.env.${process.env.NODE_ENV || 'dev'}`,
-})
+  path: process.env.NODE_ENV ? `.env.${process.env.NODE_ENV}` : '.env',
+});
 
 const devEnv = {
   PG_USER: process.env.PG_USER,

@@ -20,18 +20,94 @@ api.interceptors.request.use((config) => {
 }, (error) => Promise.reject(error))
 
 /**
- * Renders one collection’s data: search + paginated table + CSV export.
+ * Renders one collection's data: search + paginated table + CSV export.
  */
 const CollectionTable = ({ tableName, records }) => {
   const ITEMS_PER_PAGE = 5
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
+  const handlePublish = async (rowId) => {
+    try {
+      setIsLoading(true)
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/publish',
+        {
+          tableName: name,
+          id: rowId,
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record published successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to publish record')
+      }
+    } catch (err) {
+      console.error('Error publishing record:', err)
+      showAppMessage(err.message || 'Failed to publish record', 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleRollback = async (rowId, currentVersion) => {
+    try {
+      setIsLoading(true)
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/rollback',
+        {
+          tableName: name,
+          id: rowId,
+          version: currentVersion - 1, // Rollback to previous version
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record rolled back successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to rollback record')
+      }
+    } catch (err) {
+      console.error('Error rolling back record:', err)
+      showAppMessage(err.message || 'Failed to rollback record', 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleArchive = async (rowId) => {
+    try {
+      setIsLoading(true)
+      const response = await axios.post(
+        'http://localhost:8000/api/collection/collection/archive',
+        {
+          tableName: name,
+          id: rowId,
+        }
+      )
+
+      if (response.data.status) {
+        showAppMessage('Record archived successfully', 'success')
+        window.location.reload()
+      } else {
+        throw new Error(response.data.message || 'Failed to archive record')
+      }
+    } catch (err) {
+      console.error('Error archiving record:', err)
+      showAppMessage(err.message || 'Failed to archive record', 'error')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   // Convert various types into renderable strings
   const cleanValue = (value) => {
     if (value === null) return '—'
     if (typeof value === 'string') {
-      // ISO date check (contains “T”)
+      // ISO date check (contains "T")
       if (value.includes('T')) {
         const date = new Date(value)
         return date.toLocaleString()
@@ -50,6 +126,45 @@ const CollectionTable = ({ tableName, records }) => {
   }
 
   // Determines if a string is an image URL or base64
+  const isImageUrl = (value) => {
+    if (!value) return false
+    if (typeof value === 'string') {
+      // Detect base64 or image URLs
+      return (
+        value.startsWith('data:image/') ||
+        /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
+      )
+    }
+    if (typeof value === 'object' && value !== null) {
+      // If any key in the object is a valid image (recursive for thumb/large/medium)
+      return ['thumb', 'large', 'medium'].some(
+        (size) =>
+          value[size] &&
+          ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
+            (typeof value[size] === 'object' &&
+              (isImageUrl(value[size].base64) ||
+                isImageUrl(value[size].imagePath))))
+      )
+    }
+    return false
+  }
+  const getImageSrc = (value) => {
+    if (!value) return ''
+    if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
+    if (typeof value === 'object' && value !== null) {
+      // Prefer thumb, then large, then medium (customize order as you like)
+      const sizeOrder = ['thumb', 'large', 'medium']
+      for (let size of sizeOrder) {
+        if (value[size]) {
+          // Nested: can be base64 or imagePath string
+          if (typeof value[size] === 'string') return value[size]
+          if (value[size].base64) return value[size].base64
+          if (value[size].imagePath) return value[size].imagePath
+        }
+      }
+    }
+    return ''
+  }
   const isImageUrl = (value) => {
     if (!value) return false
     if (typeof value === 'string') {
@@ -173,32 +288,28 @@ const CollectionTable = ({ tableName, records }) => {
       <div className="flex items-center justify-between mb-4">
         <input
           type="text"
+          placeholder="Search..."
           value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value)
-            setCurrentPage(1)
-          }}
-          placeholder="Search rows..."
-          className="w-2/3 px-3 py-2 border rounded-md"
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="border px-2 py-1 rounded"
         />
-        <button
-          onClick={handleExport}
-          className="ml-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-        >
-          Export CSV
-        </button>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto border rounded-md">
-        <table className="min-w-full text-left">
-          <thead className="bg-gray-100">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
               {columns.map((col) => (
-                <th key={col} className="px-4 py-2 font-medium text-gray-700">
+                <th
+                  key={col}
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
                   {col}
                 </th>
               ))}
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -208,7 +319,10 @@ const CollectionTable = ({ tableName, records }) => {
                 className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}
               >
                 {columns.map((col) => (
-                  <td key={col} className="px-4 py-2">
+                  <td
+                    key={col}
+                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-500"
+                  >
                     {isImageUrl(row[col]) ? (
                       <img
                         src={getImageSrc(row[col])}
@@ -224,20 +338,55 @@ const CollectionTable = ({ tableName, records }) => {
                     )}
                   </td>
                 ))}
+                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium flex gap-2 justify-end">
+                  <button
+                    onClick={() => onViewDetails({ name, records: [row] })}
+                    className="text-[#e75024] hover:text-[#d90429]"
+                    title="View"
+                  >
+                    <Eye size={18} />
+                  </button>
+
+                  {row.status !== 'published' && (
+                    <button
+                      onClick={() => handlePublish(row.id)}
+                      disabled={isLoading}
+                      className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                    >
+                      Publish
+                    </button>
+                  )}
+
+                  {row.version > 1 && (
+                    <button
+                      onClick={() => handleRollback(row.id, row.version)}
+                      disabled={isLoading}
+                      className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                    >
+                      Rollback to v{row.version - 1}
+                    </button>
+                  )}
+
+                  {row.status !== 'archived' && (
+                    <button
+                      onClick={() => handleArchive(row.id)}
+                      disabled={isLoading}
+                      className="text-gray-600 hover:text-black disabled:opacity-50"
+                    >
+                      Archive
+                    </button>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && (
-          <p className="p-4 text-sm text-gray-500">No matching records.</p>
-        )}
       </div>
 
-      {/* Pagination controls for rows */}
-      {filtered.length > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-center space-x-2 mt-4">
+      {totalPages > 1 && (
+        <div className="mt-4 flex justify-center">
           <button
-            onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             disabled={currentPage === 1}
             className={`
               px-3 py-1 rounded-md text-sm
@@ -269,7 +418,7 @@ const CollectionTable = ({ tableName, records }) => {
           )}
 
           <button
-            onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
             disabled={currentPage === totalPages}
             className={`
               px-3 py-1 rounded-md text-sm
@@ -292,13 +441,14 @@ const CollectionTable = ({ tableName, records }) => {
  * Adds a top-right search box to filter which collections are shown.
  */
 const CollectionViewer = () => {
-  const [collections, setCollections] = useState([]) // [ 'users', 'orders', … ]
-  const [recordsMap, setRecordsMap] = useState({}) // { users: [ … ], orders: [ … ] }
+  const { showAppMessage } = useNotification()
+  const [collections, setCollections] = useState([])
+  const [recordsMap, setRecordsMap] = useState({})
   const [loading, setLoading] = useState(true)
   const [collectionSearch, setCollectionSearch] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
+  const [selectedTable, setSelectedTable] = useState(null)
   const ITEMS_PER_PAGE_COLLECTIONS = 5
-  const { showAppMessage } = useNotification()
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -311,7 +461,7 @@ const CollectionViewer = () => {
           .filter((n) => typeof n === 'string' && n.trim() !== '')
         setCollections(names)
 
-        // 2) Fetch data for each collection in parallel
+        // 2) Fetch data for each collection in parallel (only for non-excluded tables)
         const allFetches = names.map(async (colName) => {
           try {
             const r = await api.get(
@@ -358,37 +508,32 @@ const CollectionViewer = () => {
 
   // Filter collections by collectionSearch term
   const filteredCollections = collections.filter((name) =>
-    name.toLowerCase().includes(collectionSearch.trim().toLowerCase())
+    name.toLowerCase().includes(collectionSearch.toLowerCase())
   )
 
-  // Compute pagination for filtered collections
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredCollections.length / ITEMS_PER_PAGE_COLLECTIONS)
+  // Paginate collections
+  const totalPages = Math.ceil(
+    filteredCollections.length / ITEMS_PER_PAGE_COLLECTIONS
   )
-  const startIdx = (currentPage - 1) * ITEMS_PER_PAGE_COLLECTIONS
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE_COLLECTIONS
   const paginatedCollections = filteredCollections.slice(
-    startIdx,
-    startIdx + ITEMS_PER_PAGE_COLLECTIONS
+    startIndex,
+    startIndex + ITEMS_PER_PAGE_COLLECTIONS
   )
+
+  if (loading) {
+    return <div className="p-4">Loading collections...</div>
+  }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow border">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-[#0f172a]">
-          View All Collections
-        </h2>
-
-        {/* Search box for collections */}
+    <div className="p-4">
+      <div className="mb-4">
         <input
           type="text"
-          value={collectionSearch}
-          onChange={(e) => {
-            setCollectionSearch(e.target.value)
-            setCurrentPage(1)
-          }}
           placeholder="Search collections..."
-          className="w-1/3 px-3 py-2 border rounded-md"
+          value={collectionSearch}
+          onChange={(e) => setCollectionSearch(e.target.value)}
+          className="border px-2 py-1 rounded w-full max-w-md"
         />
       </div>
 

@@ -1,18 +1,21 @@
 import {Router} from 'express'
 import {
-    alterCollection,
-    createTable,
-    deleteAttributeFromCollection,
-    deleteCollection,
-    deleteData,
-    getAllCollections,
-    getCollectionByName,
-    getCollectionData,
-    insertData,
-    updateData,
-    publishData,
-    getPublishedContent,
-    getSystemLogs,
+  alterCollection,
+  createTable,
+  deleteAttributeFromCollection,
+  deleteCollection,
+  deleteData,
+  getAllCollections,
+  getCollectionByName,
+  getCollectionData,
+  insertData,
+  updateData,
+  publishData,
+  getPublishedContent,
+  getSystemLogs,
+  rollbackData,
+  getArchivedContent,
+  archiveData,
 } from '../controllers/collection.controllers.js'
 import upload from '../config/multer.config.js'
 import injectQueryExecutor from '../middlewares/injectQueryExecutor.js'
@@ -37,6 +40,10 @@ const collectionRouter = Router()
  */
 collectionRouter.post('/create', requireDatabaseSelection, injectQueryExecutor, createTable)
 
+collectionRouter.post('/rollback', rollbackData)
+collectionRouter.get('/archived/:tableName', getArchivedContent)
+collectionRouter.post('/collection/archive', archiveData)
+
 /*
  **
  ** Insert data into an existing collection
@@ -52,13 +59,9 @@ collectionRouter.post('/create', requireDatabaseSelection, injectQueryExecutor, 
  **
  */
 collectionRouter.post(
-    '/insert',
-    /* upload.fields([
-       {
-         name: 'image',
-         maxCount: 5,
-       },
-     ]),*/
+  '/insert',
+ 
+    
     upload.any(),
     injectQueryExecutor,
     insertData

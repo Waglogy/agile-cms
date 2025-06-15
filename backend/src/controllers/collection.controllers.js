@@ -163,7 +163,7 @@ export async function deleteAttributeFromCollection(req, res, next) {
 // Retrieve data from a specific collection
 export async function getCollectionData(req, res, next) {
   const { tableName } = req.params
-  const { files } = req.query
+  const { files, limit = 10, offset = 0 } = req.query
 
   if (!tableName) {
     return next(new AppError(400, 'Table name is required'))
@@ -175,7 +175,11 @@ export async function getCollectionData(req, res, next) {
     if (files === 'true') {
       data = await req.queryExecutor.getCollectionDataWithImages(tableName)
     } else {
-      data = await req.queryExecutor.getCollectionData(tableName)
+      data = await req.queryExecutor.getCollectionData(
+        tableName,
+        parseInt(limit),
+        parseInt(offset)
+      )
     }
 
     return res.json({
@@ -188,12 +192,20 @@ export async function getCollectionData(req, res, next) {
   }
 }
 
+
 // Insert new data into a collection
 export async function insertData(req, res, next) {
   try {
     // 1) Required params
     const { collectionName, ...body } = req.body;
+    
+
     if (!collectionName) {
+      return next(new AppError(
+          400,
+          'Data insert failed',
+          'Please enter collection name'
+      ));
       return next(new AppError(
           400,
           'Data insert failed',
@@ -207,16 +219,22 @@ export async function insertData(req, res, next) {
     );
     if (!collection) {
       return next(new AppError(
+  
           404,
           'Collection not found',
           `No collection named "${collectionName}"`
       ));
+    
     }
 
     // 3) Insert the main row (all non-file fields)
     const payload = { ...body };
     const insertResult = await req.queryExecutor.insertData(collectionName, payload);
     if (!insertResult) {
+      return res.status(500).json({
+        status: false,
+        message: 'Data insertion failed'
+      });
       return res.status(500).json({
         status: false,
         message: 'Data insertion failed'
@@ -268,7 +286,15 @@ export async function insertData(req, res, next) {
       message: 'Data inserted successfully',
       data: { id: newRecordId, ...body }
     });
+      
+   
   } catch (error) {
+    console.error(error);
+    return next(new AppError(
+        500,
+        'Internal Server Error',
+        error.message
+    ));
     console.error(error);
     return next(new AppError(
         500,
@@ -277,6 +303,82 @@ export async function insertData(req, res, next) {
     ));
   }
 }
+
+
+
+
+
+
+
+
+export async function rollbackData(req, res, next) {
+  const { tableName, id, version } = req.body
+  if (!tableName || !id || !version) {
+    return next(new AppError(400, 'Missing rollback parameters'))
+  }
+
+  try {
+    const success = await queryExecutor.rollbackRow(tableName, id, version)
+    await queryExecutor.insertLogEntry(
+      'rollback_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      { version }
+    )
+
+    return res.json({
+      status: success,
+      message: success ? 'Rollback successful' : 'Rollback failed',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Rollback failed', err))
+  }
+}
+export async function getArchivedContent(req, res, next) {
+  const { tableName } = req.params
+  if (!tableName) return next(new AppError(400, 'Table name is required'))
+
+  try {
+    const data = await queryExecutor.getPublishedData(tableName, 'archived') // reuse the existing function
+    return res.json({
+      status: true,
+      message: 'Archived content retrieved',
+      data,
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to fetch archived data', err))
+  }
+}
+
+export async function archiveData(req, res, next) {
+  const { tableName, id } = req.body
+
+  if (!tableName || !id) {
+    return next(new AppError(400, 'Missing tableName or id'))
+  }
+
+  try {
+    const success = await queryExecutor.archiveRow(tableName, id)
+    await queryExecutor.insertLogEntry(
+      'archive_row',
+      req.user?.email || 'system',
+      tableName,
+      id,
+      {}
+    )
+
+    return res.json({
+      status: success,
+      message: success
+        ? 'Row archived successfully'
+        : 'Archiving failed or no update made',
+    })
+  } catch (err) {
+    return next(new AppError(500, 'Failed to archive row', err))
+  }
+}
+
 
 // Update existing data in a collection
 export async function updateData(req, res, next) {

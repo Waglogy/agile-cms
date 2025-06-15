@@ -8,7 +8,7 @@ class QueryExecutor {
   async createCollection(tableName, schema) {
     const result = await this.client.query(
       'SELECT agile_cms.create_content_type($1, $2)',
-      [tableName, schema]
+      [`ubtl_${tableName}`, schema]
     )
     await this.insertLogEntry('create_table', 'system', tableName, null, {
       schema,
@@ -39,6 +39,21 @@ class QueryExecutor {
     return result.rows[0].update_content_type_data
   }
 
+  async rollbackRow(tableName, id, version) {
+    const result = await client.query(
+      'SELECT agile_cms.rollback_content_type_row($1, $2, $3)',
+      [tableName, id, version]
+    )
+    return result.rows[0].rollback_content_type_row === true
+  }
+  async getPublishedData(tableName, status = 'published') {
+    const result = await client.query(
+      'SELECT agile_cms.get_collection_by_status($1, $2)',
+      [tableName, status]
+    )
+    return result.rows[0].get_collection_by_status
+  }
+
   async deleteData(tableName, id) {
     const result = await this.client.query(
       'SELECT agile_cms.delete_content_type_data($1, $2)',
@@ -60,6 +75,11 @@ class QueryExecutor {
       })
     }
     return { success, message }
+  }
+  async archiveRow(tableName, id) {
+    const updateQuery = `UPDATE ${tableName} SET status = 'archived' WHERE id = $1`
+    const res = await client.query(updateQuery, [id])
+    return res.rowCount > 0
   }
 
   async getAllCollections() {
@@ -124,10 +144,11 @@ class QueryExecutor {
     return result.rows[0].delete_attribute_from_collection
   }
 
-  async getCollectionData(tableName) {
-    const result = await this.client.query('SELECT agile_cms.get_collection_data($1)', [
-      tableName,
-    ])
+  async getCollectionData(tableName, limit = 10, offset = 0) {
+    const result = await this.client.query(
+      'SELECT agile_cms.get_collection_data($1, $2, $3)',
+      [tableName, limit, offset]
+    )
     return result.rows[0].get_collection_data
   }
 
@@ -136,10 +157,10 @@ class QueryExecutor {
     SELECT 
       test.*,
       img.*,
-      json_agg(img_gal.*) AS image_galleries
+      json_agg(img_gal.*) AS utbl_image_galleries
     FROM agile_cms.${tableName} AS test
     JOIN agile_cms.images AS img ON test.id = img.image_id
-    JOIN agile_cms.image_galleries AS img_gal ON img.image_id = img_gal.image_id
+    JOIN agile_cms.utbl_image_galleries AS img_gal ON img.image_id = img_gal.image_id
     GROUP BY test.id, img.image_id
   `)
 
@@ -314,7 +335,7 @@ class QueryExecutor {
    */
   async listImageGalleries() {
     const result = await this.client.query(
-      'SELECT * FROM agile_cms.list_image_galleries()'
+      'SELECT * FROM agile_cms.list_utbl_image_galleries()'
     )
     return result.rows
   }
