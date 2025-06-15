@@ -15,7 +15,11 @@ const SystemLogs = () => {
   const fetchLogs = async () => {
     try {
       const response = await axios.get(
-        'http://localhost:8000/api/collection/logs/system-logs'
+        'http://localhost:8000/api/collection/logs/system-logs', {
+        headers: {
+          'auth-token': localStorage.getItem("token")
+        }
+      }
       )
       setLogs(response.data.data || [])
     } catch (error) {

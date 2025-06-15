@@ -74,7 +74,11 @@ const CollectionEditor = () => {
         'http://localhost:8000/api/collection/delete-collection',
         {
           collectionName: selectedTable,
+        }, {
+        headers: {
+          'auth-token': localStorage.getItem('token')
         }
+      }
       )
 
       if (res.data.status) {
@@ -84,7 +88,11 @@ const CollectionEditor = () => {
         setRecords([])
         // Refresh tables list
         const tablesRes = await axios.get(
-          'http://localhost:8000/api/collection'
+          'http://localhost:8000/api/collection', {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
+        }
         )
         if (tablesRes.data?.data?.get_all_collections) {
           const tablesData = tablesRes.data.data.get_all_collections.map(
@@ -106,7 +114,11 @@ const CollectionEditor = () => {
     const fetchTables = async () => {
       try {
         console.log('Starting to fetch tables...')
-        const res = await axios.get('http://localhost:8000/api/collection')
+        const res = await axios.get('http://localhost:8000/api/collection', {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
+        })
 
         if (res.data?.data?.get_all_collections) {
           const tablesData = res.data.data.get_all_collections
@@ -148,7 +160,11 @@ const CollectionEditor = () => {
       setLoading(true)
       try {
         const res = await axios.get(
-          `http://localhost:8000/api/collection/data/${selectedTable}?files=false`
+          `http://localhost:8000/api/collection/data/${selectedTable}?files=false`, {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
+        }
         )
         // Clean the data when it's received
         const cleanedRecords = (res.data.data || []).map((record) => {
@@ -255,6 +271,10 @@ const CollectionEditor = () => {
         tableName: selectedTable,
         id: String(id),
         updateData,
+      }, {
+        headers: {
+          'auth-token': localStorage.getItem('token')
+        }
       })
 
       showAppMessage('Row updated successfully.', 'success')
@@ -281,7 +301,11 @@ const CollectionEditor = () => {
         {
           tableName: selectedTable,
           id: String(id),
+        }, {
+        headers: {
+          'auth-token': localStorage.getItem('token')
         }
+      }
       )
 
       if (res.data.status) {
@@ -336,11 +360,10 @@ const CollectionEditor = () => {
             <div
               key={tableName}
               onClick={() => setSelectedTable(tableName)}
-              className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                selectedTable === tableName
-                  ? 'bg-blue-50 border-blue-500'
-                  : 'hover:bg-gray-50'
-              }`}
+              className={`p-4 border rounded-lg cursor-pointer transition-colors ${selectedTable === tableName
+                ? 'bg-blue-50 border-blue-500'
+                : 'hover:bg-gray-50'
+                }`}
             >
               <h3 className="font-medium text-gray-900">{tableName}</h3>
               {tableMetadata[tableName] && (
@@ -459,7 +482,7 @@ const CollectionEditor = () => {
                                   dangerouslySetInnerHTML={{
                                     __html:
                                       typeof row[col] === 'string' &&
-                                      row[col].includes('<p>')
+                                        row[col].includes('<p>')
                                         ? row[col]
                                         : String(row[col]),
                                   }}

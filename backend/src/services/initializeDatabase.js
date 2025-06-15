@@ -519,7 +519,8 @@ BEGIN
         || ' = '
         || CASE
              WHEN jsonb_typeof(kv.value) = 'string'
-               THEN quote_literal(kv.value::TEXT)
+               -- extract raw string content (no extra quotes)
+               THEN quote_literal( kv.value #>> '{}' )
              WHEN jsonb_typeof(kv.value) = 'null'
                THEN 'NULL'
              ELSE kv.value::TEXT
@@ -552,6 +553,7 @@ EXCEPTION WHEN OTHERS THEN
   RAISE;
 END;
 $$ LANGUAGE plpgsql;
+
 
     `)
 
@@ -599,7 +601,7 @@ BEGIN
 
   update_pairs := TRIM(BOTH ', ' FROM update_pairs);
 
-  EXECUTE format('UPDATE %I SET %s WHERE id = %s', p_table, update_pairs, p_id);
+  EXECUTE format('UPDATE agile_cms.%I SET %s WHERE id = %s', p_table, update_pairs, p_id);
   GET DIAGNOSTICS row_count = ROW_COUNT;
 
   RETURN row_count > 0;

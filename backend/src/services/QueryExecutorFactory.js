@@ -151,7 +151,7 @@ class QueryExecutor {
 
   async getCollectionData(tableName, limit = 10, offset = 0) {
     const result = await this.client.query(
-      'SELECT agile_cms.agile_cms.get_collection_data($1, $2, $3)',
+      'SELECT agile_cms.get_collection_data($1, $2, $3)',
       [tableName, limit, offset]
     )
     return result.rows[0].get_collection_data
@@ -162,10 +162,10 @@ class QueryExecutor {
     SELECT 
       test.*,
       img.*,
-      json_agg(img_gal.*) AS utbl_image_galleries
+      json_agg(img_gal.*) AS image_galleries
     FROM agile_cms.${tableName} AS test
     JOIN agile_cms.images AS img ON test.id = img.image_id
-    JOIN agile_cms.utbl_image_galleries AS img_gal ON img.image_id = img_gal.image_id
+    JOIN agile_cms.image_galleries AS img_gal ON img.image_id = img_gal.image_id
     GROUP BY test.id, img.image_id
   `)
 
@@ -388,7 +388,7 @@ class QueryExecutor {
     return result.rows[0]?.publish_content_type_row === true
   }
 
-  async getPublishedData(tableName) {
+  async getPublishedDataByTable(tableName) {
     const result = await this.client.query(
       'SELECT agile_cms.get_collection_by_status($1, $2)',
       [tableName, 'published']

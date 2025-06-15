@@ -115,6 +115,7 @@ const InsertRecordForm = () => {
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'auth-token': localStorage.getItem('token')
           },
         }
       )
@@ -133,9 +134,9 @@ const InsertRecordForm = () => {
           ...prev,
           [fieldName]: isMultiple
             ? JSON.stringify([
-                ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
-                ...fileUrls,
-              ])
+              ...(prev[fieldName] ? JSON.parse(prev[fieldName]) : []),
+              ...fileUrls,
+            ])
             : JSON.stringify(fileUrls[0]), // Store single image as JSON string
         }))
 
@@ -203,6 +204,7 @@ const InsertRecordForm = () => {
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'auth-token': localStorage.getItem('token')
           },
         }
       )
@@ -326,10 +328,9 @@ const InsertRecordForm = () => {
             disabled={currentPage === 1}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === 1
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === 1
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -342,11 +343,10 @@ const InsertRecordForm = () => {
                 onClick={() => setCurrentPage(pageNum)}
                 className={`
                 px-3 py-1 rounded-md text-sm
-                ${
-                  pageNum === currentPage
+                ${pageNum === currentPage
                     ? 'bg-blue-500 text-white'
                     : 'bg-white text-gray-700 hover:bg-gray-100'
-                }
+                  }
               `}
               >
                 {pageNum}
@@ -358,10 +358,9 @@ const InsertRecordForm = () => {
             disabled={currentPage === totalPages}
             className={`
               px-3 py-1 rounded-md text-sm
-              ${
-                currentPage === totalPages
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+              ${currentPage === totalPages
+                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                : 'bg-white text-gray-700 hover:bg-gray-100'
               }
             `}
           >
@@ -525,8 +524,8 @@ const InsertRecordForm = () => {
                         field.data_type === 'boolean'
                           ? 'checkbox'
                           : field.data_type === 'integer'
-                          ? 'number'
-                          : 'text'
+                            ? 'number'
+                            : 'text'
                       }
                       required={!field.is_nullable}
                       checked={
@@ -548,12 +547,10 @@ const InsertRecordForm = () => {
                           field.data_type
                         )
                       }
-                      className={`w-full px-3 py-2 border rounded-md ${
-                        field.data_type === 'boolean' ? 'w-4 h-4' : ''
-                      } ${!field.is_nullable ? 'required' : ''}`}
-                      placeholder={`Enter ${field.column_name}${
-                        !field.is_nullable ? ' (required)' : ''
-                      }`}
+                      className={`w-full px-3 py-2 border rounded-md ${field.data_type === 'boolean' ? 'w-4 h-4' : ''
+                        } ${!field.is_nullable ? 'required' : ''}`}
+                      placeholder={`Enter ${field.column_name}${!field.is_nullable ? ' (required)' : ''
+                        }`}
                     />
                   )}
                 </div>

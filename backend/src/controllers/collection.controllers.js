@@ -385,28 +385,59 @@ export async function insertData(req, res, next) {
 
 export async function rollbackData(req, res, next) {
   const { tableName, id, version } = req.body
-  if (!tableName || !id || !version) {
-    return next(new AppError(400, 'Missing rollback parameters'))
+
+  // 1) Basic presence check
+  if (!tableName || id == null || version == null) {
+    return next(new AppError('Missing rollback parameters', 400))
+  }
+
+  // 2) Coerce & validate numeric params
+  const recordId = parseInt(id, 10)
+  const verNum = parseInt(version, 10)
+  if (Number.isNaN(recordId) || Number.isNaN(verNum)) {
+    return next(new AppError('Invalid id or version parameter', 400))
+  }
+
+  // 3) Ensure we have a queryExecutor
+  const executor = req.queryExecutor
+  if (!executor || typeof executor.rollbackRow !== 'function') {
+    // Use AppError so Express doesn’t treat it as a 404
+    return next(new AppError('Query executor not available', 500))
   }
 
   try {
-    const success = await req.queryExecutor.rollbackRow(tableName, id, version)
-    await req.queryExecutor.insertLogEntry(
-      'rollback_row',
-      req.user?.email || 'system',
-      tableName,
-      id,
-      { version }
-    )
+    // 4) Attempt the rollback in Postgres
+    const success = await executor.rollbackRow(tableName, recordId, verNum)
 
-    return res.json({
-      status: success,
-      message: success ? 'Rollback successful' : 'Rollback failed',
-    })
+    // 5) Fire-and-forget the log entry so rollback response isn't blocked
+    executor
+      .insertLogEntry(
+        'rollback_row',
+        req.user?.email ?? 'system',
+        tableName,
+        recordId,
+        { version: verNum }
+      )
+      .catch((logErr) => {
+        console.warn('Could not log rollback:', logErr)
+      })
+
+    // 6) Respond based on success
+    if (!success) {
+      // snapshot not found → 404 is appropriate
+      console.log('OOOOOOOOKKKKKKKKKKKK')
+
+      return res
+        .status(404)
+        .json({ status: false, message: 'No matching version to roll back to' })
+    }
+
+    return res.json({ status: true, message: 'Rollback successful' })
   } catch (err) {
-    return next(new AppError(500, 'Rollback failed', err))
+    return next(new AppError('Rollback failed', 500, err))
   }
 }
+
 export async function getArchivedContent(req, res, next) {
   const { tableName } = req.params
   if (!tableName) return next(new AppError(400, 'Table name is required'))

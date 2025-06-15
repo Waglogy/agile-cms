@@ -1,6 +1,6 @@
 // src/areas/common/CollectionViewer.jsx
 
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
@@ -34,7 +34,11 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
         {
           tableName: name,
           id: rowId,
+        }, {
+        headers: {
+          'auth-token': localStorage.getItem("token")
         }
+      }
       )
 
       if (response.data.status) {
@@ -60,7 +64,11 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
           tableName: name,
           id: rowId,
           version: currentVersion - 1, // Rollback to previous version
+        }, {
+        headers: {
+          'auth-token': localStorage.getItem("token")
         }
+      }
       )
 
       if (response.data.status) {
@@ -85,7 +93,11 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
         {
           tableName: name,
           id: rowId,
+        }, {
+        headers: {
+          'auth-token': localStorage.getItem("token")
         }
+      }
       )
 
       if (response.data.status) {
@@ -379,8 +391,12 @@ const CollectionViewer = () => {
         // 2) Fetch data for each collection in parallel (only for non-excluded tables)
         const allFetches = names.map(async (colName) => {
           try {
-            const r = await api.get(
-              `/api/collection/data/${colName}?files=false`
+            const r = await axios.get(
+              `http://localhost:8000/api/collection/data/${colName}?files=false`, {
+              headers: {
+                'auth-token': localStorage.getItem("token")
+              }
+            }
             )
             console.log(r);
 

@@ -45,9 +45,13 @@ collectionRouter.post(
   createTable
 )
 
-collectionRouter.post('/rollback', rollbackData)
-collectionRouter.get('/archived/:tableName', getArchivedContent)
-collectionRouter.post('/collection/archive', archiveData)
+collectionRouter.post('/rollback', injectQueryExecutor, rollbackData)
+collectionRouter.get(
+  '/archived/:tableName',
+  injectQueryExecutor,
+  getArchivedContent
+)
+collectionRouter.post('/collection/archive', injectQueryExecutor, archiveData)
 
 /*
  **

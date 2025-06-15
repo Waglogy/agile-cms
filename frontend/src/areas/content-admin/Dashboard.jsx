@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
-import { LayoutDashboard, FileText, Users, Plus } from 'lucide-react'
-import DashboardLayout from '../common/DashboardLayout'
+import { useEffect, useState } from 'react'
+import { LayoutDashboard, Users, Plus } from 'lucide-react'
+// import DashboardLayout from '../common/DashboardLayout'
 import axios from 'axios'
 
 const StatCard = ({ icon: Icon, title, value }) => (
@@ -27,13 +27,21 @@ const AdminDashboard = () => {
         // Fetch all collections (tables)
         const resCollections = await axios.get(
           'http://localhost:8000/api/collection'
-        )
+          , {
+            headers: {
+              'auth-token': localStorage.getItem("token")
+            }
+          })
         const collectionsList =
           resCollections?.data?.data?.get_all_collections || []
 
         // Fetch logs
         const resLogs = await axios.get(
-          'http://localhost:8000/api/collection/logs/system-logs'
+          'http://localhost:8000/api/collection/logs/system-logs', {
+          headers: {
+            'auth-token': localStorage.getItem("token")
+          }
+        }
         )
         const logsList = resLogs?.data?.data || []
 
@@ -92,7 +100,7 @@ const AdminDashboard = () => {
           <StatCard key={i} {...stat} />
         ))}
       </div>
-     
+
       {/* Recent Tables */}
       <div className="bg-white rounded-xl p-4 shadow-sm border my-6">
         <h2 className="text-lg font-semibold mb-2 text-[#d90429]">
