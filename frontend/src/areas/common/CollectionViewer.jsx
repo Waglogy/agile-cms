@@ -342,12 +342,12 @@ const CollectionViewer = () => {
         const allFetches = names.map(async (colName) => {
           try {
             const r = await axios.get(
-              `http://localhost:8000/api/collection/data/${colName}?files=false`
+              http://localhost:8000/api/collection/data/${colName}?files=false
             )
             return { name: colName, rows: r?.data?.data || [] }
           } catch (err) {
-            console.error(`Failed to load data for ${colName}`, err)
-            showAppMessage(`Failed to load data for ${colName}`, 'error')
+            console.error(Failed to load data for ${colName}, err)
+            showAppMessage(Failed to load data for ${colName}, 'error')
             return { name: colName, rows: [] }
           }
         })

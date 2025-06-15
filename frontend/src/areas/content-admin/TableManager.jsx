@@ -33,10 +33,6 @@ const TableManager = () => {
   const [updatedFields, setUpdatedFields] = useState([])
   const { showAppMessage } = useNotification()
 
-  useEffect(() => {
-    fetchTables()
-  }, [])
-
   const fetchTables = async () => {
     try {
       const response = await getAllCollections()
@@ -68,6 +64,12 @@ const TableManager = () => {
       showAppMessage('Failed to load tables', 'error')
     }
   }
+
+  useEffect(() => {
+    fetchTables()
+  }, [])
+
+
 
   const handleEdit = (table) => {
     setSelectedTable(table)
