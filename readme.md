@@ -3,44 +3,70 @@
 - ### Function for creating dynamic tables based on user's input
 
 ```sql
-CREATE OR REPLACE FUNCTION create_content_type(table_name TEXT, schema JSONB) RETURNS BOOLEAN AS $$
-DECLARE
-    column_definitions TEXT := '';
-    column_entry RECORD;
-    col_name TEXT;
-    col_type TEXT;
-    constraints TEXT;
-BEGIN
-    -- Construct column definitions from schema
-    FOR column_entry IN SELECT * FROM jsonb_each(schema) LOOP
-        col_name := quote_ident(column_entry.key);
-        col_type := column_entry.value->>'type';
-        constraints := COALESCE(column_entry.value->>'constraints', '');
+CREATE OR REPLACE FUNCTION agile_cms.create_content_type(
+        tbl_name   TEXT,
+        schema_def JSONB
+      ) RETURNS TEXT AS $$
+      DECLARE
+        col_defs    TEXT := '';
+        col_name    TEXT;
+        column_def  JSONB;
+      BEGIN
+        -- 1) Build user columns
+        FOR col_name, column_def IN
+          SELECT key, value FROM jsonb_each(schema_def)
+        LOOP
+          col_defs := col_defs
+            || format('%I %s %s, ',
+               col_name,
+               column_def->>'type',
+               coalesce(column_def->>'constraints','')
+            );
+        END LOOP;
 
-        -- Validate supported types
-        IF col_type NOT IN ('TEXT', 'INTEGER', 'BOOLEAN', 'TIMESTAMP', 'DATE', 'NUMERIC', 'JSONB') THEN
-            RAISE EXCEPTION 'Unsupported data type: %', col_type;
-        END IF;
+        -- 2) Append system columns
+        col_defs := col_defs || '
+          status       TEXT        DEFAULT ''draft'',
+          version      INT         DEFAULT 1,
+          created_at   TIMESTAMPTZ DEFAULT NOW(),
+          updated_at   TIMESTAMPTZ DEFAULT NOW(),
+          published_at TIMESTAMPTZ
+        ';
 
-        column_definitions := column_definitions || format('%s %s %s, ', col_name, col_type, constraints);
-    END LOOP;
+        -- 3) Create main table
+        EXECUTE format(
+          'CREATE TABLE IF NOT EXISTS agile_cms.%I ( id SERIAL PRIMARY KEY, %s )',
+          tbl_name, col_defs
+        );
 
-    -- Remove trailing comma
-    column_definitions := TRIM(BOTH ', ' FROM column_definitions);
-    IF column_definitions = '' THEN
-        RAISE EXCEPTION 'Schema must contain at least one column';
-    END IF;
+        -- 4) Create history table
+        EXECUTE format(
+          'CREATE TABLE IF NOT EXISTS agile_cms.%I_history (
+             hist_id    SERIAL PRIMARY KEY,
+             record_id  INT    NOT NULL,
+             version    INT    NOT NULL,
+             data       JSONB  NOT NULL,
+             action     TEXT   NOT NULL,
+             changed_at TIMESTAMPTZ DEFAULT NOW()
+           )',
+          tbl_name
+        );
 
-    -- Execute dynamic SQL to create table
-    EXECUTE format('CREATE TABLE IF NOT EXISTS %I (id SERIAL PRIMARY KEY, %s);', table_name, column_definitions);
+        -- 5) Attach history trigger
+        EXECUTE format('
+          DROP TRIGGER IF EXISTS %I_history_trig ON agile_cms.%I;
+          CREATE TRIGGER %I_history_trig
+            AFTER INSERT OR UPDATE OR DELETE
+            ON agile_cms.%I
+            FOR EACH ROW EXECUTE FUNCTION agile_cms.log_content_history();
+        ',
+          tbl_name, tbl_name,
+          tbl_name, tbl_name
+        );
 
-    RETURN TRUE; -- Table created successfully
-EXCEPTION
-    WHEN OTHERS THEN
-        RAISE NOTICE 'Error creating table: %', SQLERRM;
-        RETURN FALSE;
-END;
-$$ LANGUAGE plpgsql;
+        RETURN 'created';
+      END;
+      $$ LANGUAGE plpgsql;
 ```
 
 - this function returns _TEXT_
