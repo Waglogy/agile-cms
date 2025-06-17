@@ -1,6 +1,6 @@
 // src/areas/common/CollectionViewer.jsx
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import { getAllCollections } from '../../api/collectionApi'
 import { useNotification } from '../../context/NotificationContext'
@@ -14,6 +14,7 @@ const EXCLUDED_TABLES = [
   'settings',
   'user_roles',
   'users',
+  'images'
 ]
 
 /**
@@ -34,11 +35,12 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
         {
           tableName: name,
           id: rowId,
-        }, {
-        headers: {
-          'auth-token': localStorage.getItem("token")
+        },
+        {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
         }
-      }
       )
 
       if (response.data.status) {
@@ -64,11 +66,12 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
           tableName: name,
           id: rowId,
           version: currentVersion - 1, // Rollback to previous version
-        }, {
-        headers: {
-          'auth-token': localStorage.getItem("token")
+        },
+        {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
         }
-      }
       )
 
       if (response.data.status) {
@@ -93,11 +96,12 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
         {
           tableName: name,
           id: rowId,
-        }, {
-        headers: {
-          'auth-token': localStorage.getItem("token")
+        },
+        {
+          headers: {
+            'auth-token': localStorage.getItem('token')
+          }
         }
-      }
       )
 
       if (response.data.status) {
@@ -159,45 +163,6 @@ const CollectionTable = ({ name, records, onViewDetails }) => {
     }
     return false
   }
-  /*   const getImageSrc = (value) => {
-      if (!value) return ''
-      if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
-      if (typeof value === 'object' && value !== null) {
-        // Prefer thumb, then large, then medium (customize order as you like)
-        const sizeOrder = ['thumb', 'large', 'medium']
-        for (let size of sizeOrder) {
-          if (value[size]) {
-            // Nested: can be base64 or imagePath string
-            if (typeof value[size] === 'string') return value[size]
-            if (value[size].base64) return value[size].base64
-            if (value[size].imagePath) return value[size].imagePath
-          }
-        }
-      }
-      return ''
-    } */
-  /*  const isImageUrl = (value) => {
-     if (!value) return false
-     if (typeof value === 'string') {
-       // Detect base64 or image URLs
-       return (
-         value.startsWith('data:image/') ||
-         /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(value)
-       )
-     }
-     if (typeof value === 'object' && value !== null) {
-       // If any key in the object is a valid image (recursive for thumb/large/medium)
-       return ['thumb', 'large', 'medium'].some(
-         (size) =>
-           value[size] &&
-           ((typeof value[size] === 'string' && isImageUrl(value[size])) ||
-             (typeof value[size] === 'object' &&
-               (isImageUrl(value[size].base64) ||
-                 isImageUrl(value[size].imagePath))))
-       )
-     }
-     return false
-   } */
   const getImageSrc = (value) => {
     if (!value) return ''
     if (typeof value === 'string') return value.trim().replace(/^"+|"+$/g, '')
@@ -392,14 +357,13 @@ const CollectionViewer = () => {
         const allFetches = names.map(async (colName) => {
           try {
             const r = await axios.get(
-              `http://lo/api/collection/data/${colName}?files=false`, {
-              headers: {
-                'auth-token': localStorage.getItem("token")
+              `http://localhost:8000/api/collection/data/${colName}?files=false`,
+              {
+                headers: {
+                  'auth-token': localStorage.getItem('token')
+                }
               }
-            }
             )
-            console.log(r);
-
             return { name: colName, rows: r?.data?.data || [] }
           } catch (err) {
             console.error(`Failed to load data for ${colName}`, err)
@@ -423,8 +387,7 @@ const CollectionViewer = () => {
     }
 
     fetchAll()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [showAppMessage])
 
   // Filter collections based on search
   const filteredCollections = collections.filter((name) =>
