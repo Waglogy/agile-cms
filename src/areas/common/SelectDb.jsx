@@ -152,7 +152,7 @@ const SelectDb = () => {
               value={newDbName}
               onChange={e => setNewDbName(e.target.value)}
               required
-              placeholder="e.g. herekrishna"
+              placeholder="e.g. mydatabase"
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#e75024]"
             />
           </div>
@@ -166,10 +166,10 @@ const SelectDb = () => {
               : newDbName.trim() === ''
           }
           className={`w-full py-3 text-white font-semibold rounded-lg transition ${(mode === 'select'
-              ? status === 'success' && selectedDb
-              : newDbName.trim())
-              ? 'bg-[#e75024] hover:bg-[#b60323]'
-              : 'bg-gray-400 cursor-not-allowed'
+            ? status === 'success' && selectedDb
+            : newDbName.trim())
+            ? 'bg-[#e75024] hover:bg-[#b60323]'
+            : 'bg-gray-400 cursor-not-allowed'
             }`}
         >
           {mode === 'select' ? 'Continue' : 'Create & Continue'}
